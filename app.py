@@ -18,12 +18,11 @@ model.eval()
 def serve_index():
     return send_from_directory(os.path.join(app.root_path, 'static'), 'index.html')
 
-# Route voor de /chat API
-@app.route('/chat', methods=['POST'])
+# Route voor de /chat API, die een GET-verzoek met een vraag via de q-parameter accepteert
+@app.route('/chat', methods=['GET'])
 def chat():
-    # Ontvang de vraag van de gebruiker
-    data = request.json
-    vraag = data.get('vraag', '')
+    # Verkrijg de vraag uit de queryparameter 'q'
+    vraag = request.args.get('q', '')
 
     # Controleer of er een vraag is
     if not vraag:
