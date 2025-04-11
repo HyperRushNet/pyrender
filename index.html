@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chatbot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            padding: 20px;
+        }
+        h1 {
+            color: #4CAF50;
+        }
+        .chat-container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .chat-box {
+            margin-bottom: 20px;
+            max-height: 400px;
+            overflow-y: scroll;
+        }
+        .chat-box p {
+            padding: 10px;
+            background-color: #e5e5e5;
+            border-radius: 5px;
+            max-width: 80%;
+            margin: 10px 0;
+        }
+        .chat-box p.user {
+            background-color: #d1f7c4;
+            text-align: right;
+        }
+        .chat-box p.ai {
+            background-color: #f1f1f1;
+        }
+        input[type="text"] {
+            width: 80%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>AI Chatbot</h1>
+    <div class="chat-container">
+        <div id="chat-box" class="chat-box"></div>
+
+        <input type="text" id="user-input" placeholder="Typ je vraag..." />
+        <button onclick="sendMessage()">Stuur vraag</button>
+    </div>
+
+    <script>
+        // Functie om bericht naar de server te sturen en het antwoord van de AI weer te geven
+        async function sendMessage() {
+            const userInput = document.getElementById("user-input").value;
+            if (userInput.trim() === "") return;
+
+            // Voeg het bericht van de gebruiker toe aan het chatvenster
+            addMessage(userInput, "user");
+
+            // Maak een POST-verzoek naar de API om het antwoord van de AI te krijgen
+            const response = await fetch("/chat", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ vraag: userInput })
+            });
+
+            const data = await response.json();
+
+            // Voeg het antwoord van de AI toe aan het chatvenster
+            addMessage(data.antwoord, "ai");
+
+            // Maak het invoerveld leeg
+            document.getElementById("user-input").value = "";
+        }
+
+        // Functie om berichten toe te voegen aan de chatbox
+        function addMessage(message, sender) {
+            const chatBox = document.getElementById("chat-box");
+            const messageElement = document.createElement("p");
+            messageElement.textContent = message;
+
+            if (sender === "user") {
+                messageElement.classList.add("user");
+            } else if (sender === "ai") {
+                messageElement.classList.add("ai");
+            }
+
+            chatBox.appendChild(messageElement);
+            chatBox.scrollTop = chatBox.scrollHeight; // Scroll naar het nieuwste bericht
+        }
+    </script>
+
+</body>
+</html>
