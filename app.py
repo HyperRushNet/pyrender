@@ -1,46 +1,35 @@
-from flask import Flask, jsonify, request, send_from_directory
-import os
+from flask import Flask, request, jsonify
 from transformers import GPT2LMHeadModel, GPT2Tokenizer
-import torch
 
+# Maak de Flask-app
 app = Flask(__name__)
 
-# Laad het voorgetrainde GPT-2 model en de tokenizer
-model_name = "gpt2"
-model = GPT2LMHeadModel.from_pretrained(model_name)
-tokenizer = GPT2Tokenizer.from_pretrained(model_name)
+# Laad het GPT-2 model en tokenizer
+tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
+model = GPT2LMHeadModel.from_pretrained("gpt2")
 
-# Zorg ervoor dat het model in evaluatiemodus staat
-model.eval()
+# Functie om een vraag om te zetten in een antwoord met behulp van GPT-2
+def generate_answer(question):
+    input_text = question + " Antwoord:"
+    inputs = tokenizer.encode(input_text, return_tensors="pt")
+    outputs = model.generate(inputs, max_length=100, num_return_sequences=1, no_repeat_ngram_size=2, pad_token_id=tokenizer.eos_token_id)
+    answer = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    answer = answer[len(input_text):]
+    return answer.strip()
 
-# Serve de index.html file uit de static map
 @app.route('/')
-def serve_index():
-    return send_from_directory(os.path.join(app.root_path, 'static'), 'index.html')
+def home():
+    return 'Welkom bij de dynamische vraag-antwoord bot! Gebruik /vraag?q=je_vraag om een vraag te stellen.'
 
-# Route voor de /chat API, die een GET-verzoek met een vraag via de q-parameter accepteert
-@app.route('/chat', methods=['GET'])
-def chat():
-    # Verkrijg de vraag uit de queryparameter 'q'
-    vraag = request.args.get('q', '')
+@app.route('/vraag', methods=['GET'])
+def vraag():
+    user_question = request.args.get('q', '')
+    if user_question:
+        answer = generate_answer(user_question)
+        return jsonify({'vraag': user_question, 'antwoord': answer})
+    else:
+        return jsonify({'error': 'Geen vraag opgegeven. Geef een vraag mee in de URL, bijvoorbeeld: /vraag?q=wat is je naam?'})
 
-    # Controleer of er een vraag is
-    if not vraag:
-        return jsonify({'antwoord': 'Ik heb geen vraag ontvangen.'})
-
-    # Encode de vraag in tokens die het model kan verwerken
-    inputs = tokenizer.encode(vraag, return_tensors="pt")
-
-    # Genereer een antwoord van het model
-    with torch.no_grad():
-        outputs = model.generate(inputs, max_length=100, num_return_sequences=1, no_repeat_ngram_size=2, top_k=50, top_p=0.95, temperature=0.7)
-
-    # Decode de output tokens terug naar tekst
-    antwoord = tokenizer.decode(outputs[0], skip_special_tokens=True)
-
-    # Geef het antwoord terug naar de frontend
-    return jsonify({'antwoord': antwoord})
-
+# Start de Flask-app
 if __name__ == '__main__':
-    # Draai de app op poort 10000
-    app.run(debug=True, host='0.0.0.0', port=10000)
+    app.run(host='0.0.0.0', port=10000)
