@@ -1,7 +1,9 @@
 services:
   - type: web
-    name: ai-backend
+    name: nlg-app
     env: python
-    buildCommand: ""
-    startCommand: gunicorn app:app
     plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python main.py"
+    branch: main
+    autoDeploy: true
