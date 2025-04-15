@@ -1,7 +1,9 @@
 from flask import Flask, request, jsonify
 from transformers import pipeline, set_seed
+from flask_cors import CORS  # Importeer CORS
 
 app = Flask(__name__)
+CORS(app)  # Hiermee stel je CORS in voor de hele app
 
 # Laad het model één keer bij opstart
 generator = pipeline('text-generation', model='distilgpt2')
