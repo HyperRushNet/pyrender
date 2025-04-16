@@ -164,7 +164,7 @@ def generate_response(encoder, decoder, vocab, input_sentence):
 
 # Hoofdfunctie
 def main():
-    pairs = load_data('/basicanswer-ds1.txt')
+    pairs = load_data('https://hyperrushnet.github.io/ai-training/data/ds1.txt')
     encoder, decoder, vocab = initialize_model(pairs)
     train(encoder, decoder, pairs, vocab)
     while True:
