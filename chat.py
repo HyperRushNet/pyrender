@@ -23,7 +23,7 @@ def load_data(url):
 
 # Tokenizeer een zin in woorden
 def tokenize(sentence):
-    return sentence.split(' ')  # Split op spaties om woorden te krijgen
+    return sentence.split(' ')
 
 # Maak een vocabulaire
 def build_vocab(pairs):
@@ -33,7 +33,7 @@ def build_vocab(pairs):
     index = 2
     for pair in pairs:
         for sentence in pair:
-            for word in tokenize(sentence):  # Gebruik nu woorden in plaats van karakters
+            for word in tokenize(sentence):
                 if word not in vocab:
                     vocab[word] = index
                     index += 1
@@ -82,7 +82,7 @@ class Decoder(nn.Module):
     def initHidden(self):
         return torch.zeros(1, 1, self.hidden_size, device=device)
 
-# Initialiseer het model
+# Initialiseer het model en laad het vocabulaire
 def initialize_model(pairs):
     vocab = build_vocab(pairs)
     input_lang_size = len(vocab)
@@ -94,53 +94,10 @@ def initialize_model(pairs):
 
     return encoder, decoder, vocab
 
-# Train het model
-def train(encoder, decoder, pairs, vocab, n_iters=1000, print_every=100):
-    encoder.train()
-    decoder.train()
-
-    encoder_optimizer = optim.SGD(encoder.parameters(), lr=0.01)
-    decoder_optimizer = optim.SGD(decoder.parameters(), lr=0.01)
-    criterion = nn.CrossEntropyLoss()
-
-    for iter in range(1, n_iters + 1):
-        training_pair = random.choice(pairs)
-        input_tensor = torch.tensor(indexes_from_sentence(vocab, training_pair[0]), dtype=torch.long, device=device).view(-1, 1)
-        target_tensor = torch.tensor(indexes_from_sentence(vocab, training_pair[1]), dtype=torch.long, device=device).view(-1, 1)
-
-        encoder_hidden = encoder.initHidden()
-
-        encoder_optimizer.zero_grad()
-        decoder_optimizer.zero_grad()
-
-        loss = 0
-        encoder_output, encoder_hidden = encoder(input_tensor, encoder_hidden)
-
-        decoder_input = torch.tensor([SOS_token], device=device)
-        decoder_hidden = encoder_hidden
-
-        for di in range(target_tensor.size(0)):
-            decoder_output, decoder_hidden = decoder(decoder_input, decoder_hidden)
-            topv, topi = decoder_output.topk(1)
-            decoder_input = topi.squeeze().detach()
-
-            loss += criterion(decoder_output, target_tensor[di])
-
-            if decoder_input.item() == EOS_token:
-                break
-
-        loss.backward()
-
-        encoder_optimizer.step()
-        decoder_optimizer.step()
-
-        if iter % print_every == 0:
-            print(f"Iteration {iter} Loss: {loss.item() / target_tensor.size(0)}")
-
 # Genereer een antwoord
-def generate_response(encoder, decoder, vocab, input_sentence):
+def generate_response(user_input, encoder, decoder, vocab):
     with torch.no_grad():
-        input_tensor = torch.tensor(indexes_from_sentence(vocab, input_sentence), dtype=torch.long, device=device).view(-1, 1)
+        input_tensor = torch.tensor(indexes_from_sentence(vocab, user_input), dtype=torch.long, device=device).view(-1, 1)
         encoder_hidden = encoder.initHidden()
 
         encoder_output, encoder_hidden = encoder(input_tensor, encoder_hidden)
@@ -159,19 +116,3 @@ def generate_response(encoder, decoder, vocab, input_sentence):
             decoded_indices.append(decoder_input.item())
 
         return sentence_from_indexes(vocab, decoded_indices)
-
-# Hoofdfunctie
-def main():
-    url = 'https://hyperrushnet.github.io/ai-training/data/ds1.txt'
-    pairs = load_data(url)
-    encoder, decoder, vocab = initialize_model(pairs)
-    train(encoder, decoder, pairs, vocab)
-    while True:
-        input_sentence = input("You: ")
-        if input_sentence.lower() in ['quit', 'exit']:
-            break
-        response = generate_response(encoder, decoder, vocab, input_sentence)
-        print(f"Bot: {response}")
-
-if __name__ == "__main__":
-    main()
