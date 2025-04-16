@@ -1,44 +1,47 @@
 import torch
 import torch.nn as nn
-import torch.optim as optim
+import pickle
+import numpy as np
+from model import Seq2Seq, Vocabulary
 
-# Vocabulary class to manage the vocabulary
-class Vocabulary:
-    def __init__(self):
-        self.word2index = {}
-        self.index2word = {}
-        self.n_words = 0
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    def add_word(self, word):
-        if word not in self.word2index:
-            self.word2index[word] = self.n_words
-            self.index2word[self.n_words] = word
-            self.n_words += 1
-
-    def add_sentence(self, sentence):
-        for word in sentence.split(' '):
-            self.add_word(word)
-
-# Example Encoder-Decoder Model class
-class Seq2Seq(nn.Module):
-    def __init__(self, vocab_size, embed_size, hidden_size):
-        super(Seq2Seq, self).__init__()
-        self.embedding = nn.Embedding(vocab_size, embed_size)
-        self.encoder_rnn = nn.LSTM(embed_size, hidden_size)
-        self.decoder_rnn = nn.LSTM(embed_size, hidden_size)
-        self.output_layer = nn.Linear(hidden_size, vocab_size)
-
-    def forward(self, input_seq, target_seq):
-        embedded_input = self.embedding(input_seq)
-        encoder_output, (hidden, cell) = self.encoder_rnn(embedded_input)
-        decoder_output, _ = self.decoder_rnn(embedded_input, (hidden, cell))
-        output = self.output_layer(decoder_output)
-        return output
-
-# Example function to load model and vocab
 def load_model_and_vocab():
-    vocab = Vocabulary()
-    # Load your model here
-    encoder = Seq2Seq(vocab.n_words, embed_size=256, hidden_size=512)
-    decoder = Seq2Seq(vocab.n_words, embed_size=256, hidden_size=512)
+    # Laad het vocabulaire
+    with open('model/vocab.pkl', 'rb') as f:
+        vocab = pickle.load(f)
+    
+    # Laad de encoder en decoder modellen
+    encoder = torch.load('model/encoder.pt', map_location=device)
+    decoder = torch.load('model/decoder.pt', map_location=device)
+    
+    encoder.eval()
+    decoder.eval()
+    
     return encoder, decoder, vocab
+
+def generate_response(user_input, encoder, decoder, vocab):
+    # Zet de input om naar tokens en voer padding uit
+    input_tokens = [vocab.word2index.get(word, vocab.word2index['<UNK>']) for word in user_input.split()]
+    input_tensor = torch.tensor(input_tokens, dtype=torch.long, device=device).unsqueeze(0)
+    
+    # Zet de input door de encoder
+    encoder_hidden = encoder.init_hidden(input_tensor.size(0))
+    encoder_output, encoder_hidden = encoder(input_tensor, encoder_hidden)
+    
+    # Initialiseer de decoder
+    decoder_input = torch.tensor([vocab.word2index['<SOS>']], device=device).unsqueeze(0)
+    decoder_hidden = encoder_hidden
+    
+    decoded_words = []
+    for di in range(50):  # Beperk de lengte van de output
+        decoder_output, decoder_hidden = decoder(decoder_input, decoder_hidden)
+        topv, topi = decoder_output.topk(1)
+        decoder_input = topi.squeeze().detach()  # Verkrijg het volgende woord
+        
+        if decoder_input.item() == vocab.word2index['<EOS>']:
+            break
+        
+        decoded_words.append(vocab.index2word[decoder_input.item()])
+    
+    return ' '.join(decoded_words)
