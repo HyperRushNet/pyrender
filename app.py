@@ -1,3 +1,5 @@
+# app.py
+
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from chat import generate_response, load_model_and_vocab
