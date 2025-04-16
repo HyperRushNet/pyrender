@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
-import random
 import requests
+import random
 
 # Constants
 MAX_LENGTH = 20
@@ -110,9 +110,25 @@ def generate_response(user_input, encoder, decoder, vocab):
 
         return ' '.join(decoded_words)
 
-# Load model & vocab (used by backend once at startup)
+# Laad het model & vocab na training
 def load_model_and_vocab():
     url = 'https://hyperrushnet.github.io/ai-training/data/ds1.txt'
     pairs = load_data(url)
-    encoder, decoder, vocab = initialize_model(pairs)
+    vocab = Vocabulary()
+
+    for pair in pairs:
+        vocab.add_sentence(pair[0])
+        vocab.add_sentence(pair[1])
+
+    hidden_size = 256
+    encoder = EncoderRNN(vocab.n_words, hidden_size).to(device)
+    decoder = DecoderRNN(hidden_size, vocab.n_words).to(device)
+
+    # Laad getrainde gewichten
+    encoder.load_state_dict(torch.load('encoder.pt', map_location=device))
+    decoder.load_state_dict(torch.load('decoder.pt', map_location=device))
+
+    encoder.eval()
+    decoder.eval()
+
     return encoder, decoder, vocab
