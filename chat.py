@@ -1,10 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import numpy as np
 import random
-import string
-from collections import defaultdict
 import requests
 
 # Vooraf gedefinieerde parameters
@@ -24,9 +21,9 @@ def load_data(url):
             pairs.append((input_sentence, output_sentence))
     return pairs
 
-# Tokenizeer een zin
+# Tokenizeer een zin in woorden
 def tokenize(sentence):
-    return list(sentence)
+    return sentence.split(' ')  # Split op spaties om woorden te krijgen
 
 # Maak een vocabulaire
 def build_vocab(pairs):
@@ -36,20 +33,20 @@ def build_vocab(pairs):
     index = 2
     for pair in pairs:
         for sentence in pair:
-            for char in tokenize(sentence):
-                if char not in vocab:
-                    vocab[char] = index
+            for word in tokenize(sentence):  # Gebruik nu woorden in plaats van karakters
+                if word not in vocab:
+                    vocab[word] = index
                     index += 1
     return vocab
 
 # Zet een zin om in indices
 def indexes_from_sentence(vocab, sentence):
-    return [vocab[char] for char in tokenize(sentence)] + [EOS_token]
+    return [vocab[word] for word in tokenize(sentence)] + [EOS_token]
 
 # Zet een lijst van indices om in een zin
 def sentence_from_indexes(vocab, indexes):
-    reverse_vocab = {index: char for char, index in vocab.items()}
-    return ''.join([reverse_vocab[index] for index in indexes if index not in [SOS_token, EOS_token]])
+    reverse_vocab = {index: word for word, index in vocab.items()}
+    return ' '.join([reverse_vocab[index] for index in indexes if index not in [SOS_token, EOS_token]])
 
 # Definieer het Encoder model
 class Encoder(nn.Module):
@@ -75,12 +72,11 @@ class Decoder(nn.Module):
         self.embedding = nn.Embedding(output_size, hidden_size)
         self.gru = nn.GRU(hidden_size, hidden_size)
         self.out = nn.Linear(hidden_size, output_size)
-        self.softmax = nn.LogSoftmax(dim=1)
 
     def forward(self, input_step, hidden):
         embedded = self.embedding(input_step).view(1, 1, -1)
         output, hidden = self.gru(embedded, hidden)
-        output = self.softmax(self.out(output[0]))
+        output = self.out(output[0])
         return output, hidden
 
     def initHidden(self):
@@ -105,7 +101,7 @@ def train(encoder, decoder, pairs, vocab, n_iters=1000, print_every=100):
 
     encoder_optimizer = optim.SGD(encoder.parameters(), lr=0.01)
     decoder_optimizer = optim.SGD(decoder.parameters(), lr=0.01)
-    criterion = nn.NLLLoss()
+    criterion = nn.CrossEntropyLoss()
 
     for iter in range(1, n_iters + 1):
         training_pair = random.choice(pairs)
