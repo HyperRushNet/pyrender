@@ -1,25 +1,29 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chatbot</title>
-</head>
-<body>
-    <h1>Chat met de AI</h1>
-    <input type="text" id="userInput" placeholder="Typ je bericht hier...">
-    <button onclick="sendMessage()">Verstuur</button>
-    <p id="response"></p>
-
     <script>
         async function sendMessage() {
-            const userInput = document.getElementById('userInput').value;
-            const response = await fetch('/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: userInput })
-            });
+            const message = document.getElementById('user-input').value;
+            const response = await fetch(`/chat?q=${message}`);
             const data = await response.json();
-            document.getElementById('response').innerText = data.response;
+            
+            if (data.response) {
+                document.getElementById('chat-log').innerHTML += `<div><strong>You:</strong> ${message}</div>`;
+                document.getElementById('chat-log').innerHTML += `<div><strong>Bot:</strong> ${data.response}</div>`;
+            } else {
+                document.getElementById('chat-log').innerHTML += `<div><strong>Error:</strong> ${data.error}</div>`;
+            }
+            document.getElementById('user-input').value = '';
         }
     </script>
+</head>
+<body>
+    <h1>Chatbot</h1>
+    <div id="chat-log"></div>
+    <input type="text" id="user-input" placeholder="Type your message here..." />
+    <button onclick="sendMessage()">Send</button>
 </body>
 </html>
