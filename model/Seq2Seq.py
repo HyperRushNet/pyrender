@@ -1,22 +1,40 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+
+class Encoder(nn.Module):
+    def __init__(self, vocab_size, hidden_size=256):
+        super(Encoder, self).__init__()
+        self.hidden_size = hidden_size
+        self.embedding = nn.Embedding(vocab_size, hidden_size)
+        self.rnn = nn.GRU(hidden_size, hidden_size)
+
+    def forward(self, input_seq):
+        embedded = self.embedding(input_seq)
+        _, hidden = self.rnn(embedded)
+        return hidden
+
+class Decoder(nn.Module):
+    def __init__(self, vocab_size, hidden_size=256):
+        super(Decoder, self).__init__()
+        self.hidden_size = hidden_size
+        self.embedding = nn.Embedding(vocab_size, hidden_size)
+        self.rnn = nn.GRU(hidden_size, hidden_size)
+        self.fc = nn.Linear(hidden_size, vocab_size)
+
+    def forward(self, input_seq, hidden):
+        embedded = self.embedding(input_seq)
+        output, hidden = self.rnn(embedded, hidden)
+        output = self.fc(output)
+        return output, hidden
 
 class Seq2Seq(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size):
+    def __init__(self, encoder, decoder):
         super(Seq2Seq, self).__init__()
-        
-        self.hidden_size = hidden_size
-        
-        self.encoder = nn.LSTM(input_size, hidden_size, batch_first=True)
-        self.decoder = nn.LSTM(hidden_size, hidden_size, batch_first=True)
-        self.output_layer = nn.Linear(hidden_size, output_size)
-    
-    def forward(self, input_tensor, hidden_state):
-        encoder_out, encoder_hidden = self.encoder(input_tensor, hidden_state)
-        decoder_out, decoder_hidden = self.decoder(encoder_out, encoder_hidden)
-        output = self.output_layer(decoder_out)
-        return output, decoder_hidden
-    
-    def init_hidden(self, batch_size):
-        return (torch.zeros(1, batch_size, self.hidden_size),
-                torch.zeros(1, batch_size, self.hidden_size))
+        self.encoder = encoder
+        self.decoder = decoder
+
+    def forward(self, input_seq, target_seq):
+        hidden = self.encoder(input_seq)
+        output, _ = self.decoder(target_seq, hidden)
+        return output
