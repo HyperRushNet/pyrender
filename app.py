@@ -1,26 +1,27 @@
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
-from chat import generate_response, load_data, initialize_model
+from chat import generate_response
 
 app = Flask(__name__)
 CORS(app)  # CORS inschakelen voor alle routes
-
-# Laad het model en vocabulaire bij het opstarten van de server
-url = 'https://hyperrushnet.github.io/ai-training/data/ds1.txt'
-pairs = load_data(url)
-encoder, decoder, vocab = initialize_model(pairs)
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
-@app.route('/chat', methods=['POST'])
+# Route voor het ophalen van de vraag via de query parameter
+@app.route('/chat', methods=['GET'])
 def chat():
-    data = request.get_json()
-    user_input = data.get('message', '')
+    # Haal de vraag op uit de queryparameter ?q=
+    user_input = request.args.get('q', '')  # Verkrijg de parameter 'q' uit de URL
+
     if not user_input:
-        return jsonify({'error': 'Geen invoer ontvangen'}), 400
-    response = generate_response(user_input, encoder, decoder, vocab)
+        return jsonify({'error': 'Geen vraag ontvangen, gebruik ?q=<je vraag>'}), 400
+    
+    # Genereer het antwoord via je chatbotfunctie
+    response = generate_response(user_input)
+    
+    # Geef het antwoord terug in de response body
     return jsonify({'response': response})
 
 if __name__ == '__main__':
