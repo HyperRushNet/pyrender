@@ -1,5 +1,4 @@
 flask
-transformers
-torch
 flask-cors
+torch
 gunicorn
