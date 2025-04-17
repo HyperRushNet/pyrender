@@ -20,14 +20,6 @@ learning_rate = 0.001
 # Verkrijg de training data
 input_tensor, target_tensor, vocab = get_ds()
 
-# Voeg speciale tokens toe als ze nog niet in het vocab zitten
-if '<SOS>' not in vocab:
-    vocab['<SOS>'] = len(vocab)
-if '<EOS>' not in vocab:
-    vocab['<EOS>'] = len(vocab)
-if '<UNK>' not in vocab:
-    vocab['<UNK>'] = len(vocab)
-
 # Initialiseer het model
 encoder = Encoder(vocab_size=len(vocab), hidden_size=hidden_dim)
 decoder = Decoder(vocab_size=len(vocab), hidden_size=hidden_dim)
@@ -69,59 +61,55 @@ def tensor_from_sentence(vocab, sentence):
     indices = []
     for word in sentence.split(' '):
         if word not in vocab:
-            # Voeg het nieuwe woord toe aan het vocabulaire (gebruik een nieuw index voor nieuwe woorden)
+            print(f"Adding new word to vocab: {word}")
             vocab[word] = len(vocab)
         indices.append(vocab[word])
 
-    # Zet de lijst van indices om naar een tensor
+    print(f"Generated indices: {indices}")
     return torch.tensor(indices, dtype=torch.long).view(-1, 1)
 
 
 def generate_response(user_input, encoder, decoder, vocab):
-    # Encodeer de gebruikersinvoer naar een tensor
+    print(f"Current vocab size: {len(vocab)}")
+    print(f"User input: {user_input}")
+
     try:
         input_tensor = tensor_from_sentence(vocab, user_input)
     except KeyError as e:
         return f"Fout bij het omzetten van de input naar tensor: {e}"
 
-    # Verplaats input_tensor naar de juiste device (CPU of GPU)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     input_tensor = input_tensor.to(device)
 
-    # Initialiseer de hidden states van de encoder
-    encoder_hidden = encoder(input_tensor)  # Geen init_hidden nodig
+    # Initialiseer de verborgen toestand van de encoder
+    encoder_hidden = encoder(input_tensor)
 
-    # Verkrijg de output van de encoder
-    encoder_outputs = encoder_hidden
+    # Start met de decoderinvoer als <SOS>
+    decoder_input = torch.tensor([[vocab.get('<SOS>', 0)]]).to(device)
 
-    # Initialiseer de input voor de decoder (start token)
-    decoder_input = torch.tensor([[vocab['<SOS>']]]).to(device)
-
-    # Initialiseer de hidden state van de decoder
+    # Initialiseer de verborgen toestand van de decoder
     decoder_hidden = encoder_hidden
 
-    # Dit houdt de gegenereerde output bij
     decoded_words = []
 
-    # Genereer het antwoord (max 10 stappen bijvoorbeeld)
-    for di in range(10):
+    for di in range(10):  # Aantal stappen in de decodering (max 10)
         decoder_output, decoder_hidden = decoder(decoder_input, decoder_hidden)
         topv, topi = decoder_output.topk(1)
         ni = topi.squeeze().item()
 
+        # Voeg het gegenereerde woord toe aan de lijst
         decoded_words.append(vocab.get(ni, '<UNK>'))
 
-        # Als het einde van de zin is bereikt, stop dan
-        if ni == vocab['<EOS>']:
+        # Stop als we het <EOS> token bereiken
+        if ni == vocab.get('<EOS>', -1):
             break
 
-        # De nieuwe input voor de decoder is het laatst voorspelde token
+        # De nieuwe decoderinput is het laatst voorspelde token
         decoder_input = torch.tensor([[ni]]).to(device)
 
-    # Zet de gegenereerde woorden om naar een zin
     response = ' '.join(decoded_words)
-
-    # Sla het vocab op nadat de gebruikersinvoer is verwerkt
+    
+    # Update vocab en sla op
     with open('model/vocab.pkl', 'wb') as f:
         pickle.dump(vocab, f)
 
