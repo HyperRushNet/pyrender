@@ -108,7 +108,11 @@ def generate_response(user_input, encoder, decoder, vocab):
 
 
 def load_model_and_vocab():
-    # Laad het model en vocabulaire
+    # Laad het vocabulaire
+    with open('model/vocab.pkl', 'rb') as f:
+        vocab = pickle.load(f)
+
+    # Laad het model
     encoder = Encoder(vocab_size=len(vocab), hidden_size=hidden_dim)
     decoder = Decoder(vocab_size=len(vocab), hidden_size=hidden_dim)
     model = Seq2Seq(encoder, decoder)
@@ -116,9 +120,5 @@ def load_model_and_vocab():
     # Laad de opgeslagen gewichten
     encoder.load_state_dict(torch.load('model/encoder.pt'))
     decoder.load_state_dict(torch.load('model/decoder.pt'))
-
-    # Laad het vocabulaire
-    with open('model/vocab.pkl', 'rb') as f:
-        vocab = pickle.load(f)
 
     return encoder, decoder, vocab
