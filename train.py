@@ -2,7 +2,7 @@ import torch
 import pickle
 from torch import nn
 from torch.optim import Adam
-from Seq2Seq import Seq2Seq
+from model.Seq2Seq import Seq2Seq  # Correcte import van Seq2Seq
 from training_data import get_data
 
 # Hyperparameters
@@ -16,7 +16,9 @@ learning_rate = 0.001
 input_tensor, target_tensor, vocab = get_data()
 
 # Initialiseer het model
-model = Seq2Seq(input_dim=len(vocab), output_dim=len(vocab), embedding_dim=embedding_dim, hidden_dim=hidden_dim)
+encoder = Encoder(vocab_size=len(vocab), hidden_size=hidden_dim)
+decoder = Decoder(vocab_size=len(vocab), hidden_size=hidden_dim)
+model = Seq2Seq(encoder, decoder)  # Hier wordt je Seq2Seq model aangemaakt
 optimizer = Adam(model.parameters(), lr=learning_rate)
 loss_fn = nn.CrossEntropyLoss()
 
@@ -30,7 +32,7 @@ for epoch in range(num_epochs):
 
         # Voer een forward pass uit
         output = model(inputs, targets)
-        loss = loss_fn(output, targets)
+        loss = loss_fn(output.view(-1, len(vocab)), targets.view(-1))  # Zorg dat de output een juiste vorm heeft
 
         # Voer backpropagation uit
         optimizer.zero_grad()
