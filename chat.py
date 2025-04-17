@@ -1,69 +1,48 @@
 import torch
 import pickle
 from torch import nn
+from torch.optim import Adam
+from Seq2Seq import Seq2Seq
+from training_data import get_data
 
-### Zelfgemaakte Encoder-Decoder ter vervanging van `seq2seq.Seq2Seq` ###
-class Encoder(nn.Module):
-    def __init__(self, input_size, hidden_size):
-        super().__init__()
-        self.hidden_size = hidden_size
-        self.embedding = nn.Embedding(input_size, hidden_size)
-        self.lstm = nn.LSTM(hidden_size, hidden_size)
+# Hyperparameters
+embedding_dim = 256
+hidden_dim = 512
+num_epochs = 10
+batch_size = 64
+learning_rate = 0.001
 
-    def forward(self, input_tensor):
-        embedded = self.embedding(input_tensor)
-        outputs, (hidden, cell) = self.lstm(embedded)
-        return outputs, (hidden, cell)
+# Verkrijg de training data
+input_tensor, target_tensor, vocab = get_data()
 
-class Decoder(nn.Module):
-    def __init__(self, output_size, hidden_size):
-        super().__init__()
-        self.hidden_size = hidden_size
-        self.embedding = nn.Embedding(output_size, hidden_size)
-        self.lstm = nn.LSTM(hidden_size, hidden_size)
-        self.out = nn.Linear(hidden_size, output_size)
-        self.softmax = nn.LogSoftmax(dim=2)
+# Initialiseer het model
+model = Seq2Seq(input_dim=len(vocab), output_dim=len(vocab), embedding_dim=embedding_dim, hidden_dim=hidden_dim)
+optimizer = Adam(model.parameters(), lr=learning_rate)
+loss_fn = nn.CrossEntropyLoss()
 
-    def forward(self, input_tensor, hidden, encoder_outputs):
-        embedded = self.embedding(input_tensor).unsqueeze(0)
-        output, (hidden, cell) = self.lstm(embedded, hidden)
-        output = self.out(output)
-        output = self.softmax(output)
-        return output, (hidden, cell)
+# Train het model
+for epoch in range(num_epochs):
+    model.train()
+    for i in range(0, len(input_tensor), batch_size):
+        # Haal een batch van de data
+        inputs = input_tensor[i:i + batch_size]
+        targets = target_tensor[i:i + batch_size]
 
-### Originele functionaliteit (aangepast voor onze nieuwe klassen) ###
-def load_model_and_vocab():
-    # Laad vocab
-    with open('model/vocab.pkl', 'rb') as f:
-        vocab = pickle.load(f)
+        # Voer een forward pass uit
+        output = model(inputs, targets)
+        loss = loss_fn(output, targets)
 
-    # Laad model (nu met onze eigen Encoder/Decoder)
-    encoder = torch.load('model/encoder.pt')
-    decoder = torch.load('model/decoder.pt')
-    
-    return encoder, decoder, vocab
+        # Voer backpropagation uit
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
 
-def generate_response(user_input, encoder, decoder, vocab):
-    # Preprocess de input
-    input_tensor = torch.tensor([vocab.get(word, vocab['<unk>']) for word in user_input.split()]).unsqueeze(0)
+    print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {loss.item()}")
 
-    # Verwerk de input door het model
-    with torch.no_grad():
-        encoder_outputs, (hidden, cell) = encoder(input_tensor)
-        decoder_input = torch.tensor([vocab['<sos>']])
-        decoder_hidden = (hidden, cell)
+# Sla het model op
+torch.save(model.encoder, 'model/encoder.pt')
+torch.save(model.decoder, 'model/decoder.pt')
 
-        output_words = []
-        for _ in range(100):  # Max output length
-            decoder_output, decoder_hidden = decoder(
-                decoder_input, decoder_hidden, encoder_outputs
-            )
-            topv, topi = decoder_output.topk(1)
-            decoder_input = topi.squeeze().detach()
-
-            if decoder_input.item() == vocab['<eos>']:
-                break
-
-            output_words.append(vocab.get(decoder_input.item(), '<unk>'))
-
-        return ' '.join(output_words)
+# Sla de vocab op
+with open('model/vocab.pkl', 'wb') as f:
+    pickle.dump(vocab, f)
