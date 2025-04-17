@@ -2,13 +2,9 @@ import os
 import torch
 import pickle
 from torch import nn
-from torch.optim import Adam
-from model.Seq2Seq import Seq2Seq, Encoder, Decoder  # Correcte import van Seq2Seq
+from torch.utils.data import DataLoader, Dataset
+from model.Seq2Seq import Seq2Seq, Encoder, Decoder  # Zorg ervoor dat de imports correct zijn
 from get_data import get_ds
-
-# Controleer of de map bestaat, zo niet maak hem aan
-if not os.path.exists('model'):
-    os.makedirs('model')
 
 # Hyperparameters
 embedding_dim = 256
@@ -17,6 +13,10 @@ num_epochs = 10
 batch_size = 64
 learning_rate = 0.001
 
+# Controleer of de map bestaat, zo niet maak hem aan
+if not os.path.exists('model'):
+    os.makedirs('model')
+
 # Verkrijg de training data
 input_tensor, target_tensor, vocab = get_ds()
 
@@ -24,7 +24,7 @@ input_tensor, target_tensor, vocab = get_ds()
 encoder = Encoder(vocab_size=len(vocab), hidden_size=hidden_dim)
 decoder = Decoder(vocab_size=len(vocab), hidden_size=hidden_dim)
 model = Seq2Seq(encoder, decoder)
-optimizer = Adam(model.parameters(), lr=learning_rate)
+optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 loss_fn = nn.CrossEntropyLoss()
 
 # Train het model
@@ -55,6 +55,7 @@ torch.save(model.decoder.state_dict(), 'model/decoder.pt')
 with open('model/vocab.pkl', 'wb') as f:
     pickle.dump(vocab, f)
 
+
 # Functie voor het laden van het model en vocab
 def load_model_and_vocab():
     # Laad de vocab
@@ -75,11 +76,53 @@ def load_model_and_vocab():
 
     return encoder, decoder, vocab
 
+
 # Functie om antwoord te genereren
 def generate_response(user_input, encoder, decoder, vocab):
-    # Hier komt je logica om het antwoord te genereren
-    # Bijv. encode de user_input, pass naar decoder en decodeer het antwoord
-    # Dit is een placeholder functie
+    # Encodeer de gebruikersinvoer naar een tensor
+    input_tensor = tensor_from_sentence(vocab, user_input)
 
-    # Voor nu kun je een voorbeeldantwoord teruggeven:
-    return "Dit is een gegenereerd antwoord"
+    # Verplaats input_tensor naar de juiste device (CPU of GPU)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    input_tensor = input_tensor.to(device)
+
+    # Initialiseer de hidden states van de encoder
+    encoder_hidden = encoder.init_hidden(1)
+
+    # Verkrijg de output van de encoder
+    encoder_outputs, encoder_hidden = encoder(input_tensor, encoder_hidden)
+
+    # Initialiseer de input voor de decoder (start token)
+    decoder_input = torch.tensor([[vocab['<SOS>']]]).to(device)
+
+    # Initialiseer de hidden state van de decoder
+    decoder_hidden = encoder_hidden
+
+    # Dit houdt de gegenereerde output bij
+    decoded_words = []
+
+    # Genereer het antwoord (max 10 stappen bijvoorbeeld)
+    for di in range(10):
+        decoder_output, decoder_hidden, decoder_attention = decoder(decoder_input, decoder_hidden, encoder_outputs)
+        topv, topi = decoder_output.topk(1)
+        ni = topi.squeeze().item()
+        decoded_words.append(vocab.get(ni, '<UNK>'))
+
+        # Als het einde van de zin is bereikt, stop dan
+        if ni == vocab['<EOS>']:
+            break
+
+        # De nieuwe input voor de decoder is het laatst voorspelde token
+        decoder_input = torch.tensor([[ni]]).to(device)
+
+    # Zet de gegenereerde woorden om naar een zin
+    response = ' '.join(decoded_words)
+
+    return response
+
+
+# Hulpfunctie om een zin om te zetten naar een tensor
+def tensor_from_sentence(vocab, sentence):
+    indexes = [vocab[word] for word in sentence.split(' ')]
+    indexes.append(vocab['<EOS>'])  # Voeg het <EOS> token toe
+    return torch.tensor(indexes, dtype=torch.long).view(-1, 1)
