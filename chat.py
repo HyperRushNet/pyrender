@@ -80,11 +80,8 @@ def generate_response(user_input, encoder, decoder, vocab):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     input_tensor = input_tensor.to(device)
 
-    # Initialiseer de hidden states van de encoder
-    encoder_hidden = encoder.init_hidden(1)
-
     # Verkrijg de output van de encoder
-    encoder_outputs, encoder_hidden = encoder(input_tensor, encoder_hidden)
+    encoder_outputs, encoder_hidden = encoder(input_tensor)
 
     # Initialiseer de input voor de decoder (start token)
     decoder_input = torch.tensor([[vocab['<SOS>']]]).to(device)
