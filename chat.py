@@ -1,6 +1,6 @@
 import os
 import torch
-import pickle 
+import pickle
 from torch import nn
 from torch.optim import Adam
 from model.Seq2Seq import Seq2Seq, Encoder, Decoder  # Correcte import van Seq2Seq
