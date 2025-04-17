@@ -20,6 +20,12 @@ learning_rate = 0.001
 # Verkrijg de training data
 input_tensor, target_tensor, vocab = get_ds()
 
+# Voeg <SOS> en <EOS> toe aan het vocabulaire
+if '<SOS>' not in vocab:
+    vocab['<SOS>'] = len(vocab)
+if '<EOS>' not in vocab:
+    vocab['<EOS>'] = len(vocab)
+
 # Initialiseer het model
 encoder = Encoder(vocab_size=len(vocab), hidden_size=hidden_dim)
 decoder = Decoder(vocab_size=len(vocab), hidden_size=hidden_dim)
