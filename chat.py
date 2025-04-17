@@ -1,18 +1,41 @@
 import torch
-from Seq2Seq import Encoder, Decoder, Seq2Seq
-from vocab import Vocabulary
+import pickle
+from Seq2Seq import Seq2Seq
+from torch import nn
+from torch.optim import Adam
 
+# Functie om het model en vocab te laden
 def load_model_and_vocab():
-    encoder = Encoder(vocab_size=10000)  # stel vocab_size in op basis van je model
-    decoder = Decoder(vocab_size=10000)
-    encoder.load_state_dict(torch.load('model/encoder.pt'))
-    decoder.load_state_dict(torch.load('model/decoder.pt'))
-    vocab = Vocabulary.load('model/vocab.pkl')
+    # Laad vocab
+    with open('model/vocab.pkl', 'rb') as f:
+        vocab = pickle.load(f)
+
+    # Laad model
+    encoder = torch.load('model/encoder.pt')
+    decoder = torch.load('model/decoder.pt')
+    
     return encoder, decoder, vocab
 
-def generate_response(input_text, encoder, decoder, vocab):
-    input_seq = torch.tensor([vocab.word2index[word] for word in input_text.split()]).unsqueeze(0)
-    hidden = encoder(input_seq)
-    output, _ = decoder(input_seq, hidden)
-    response = ' '.join([vocab.index2word[idx.item()] for idx in output.argmax(dim=2).squeeze()])
-    return response
+# Functie om een response van het model te genereren
+def generate_response(user_input, encoder, decoder, vocab):
+    # Preprocess de input
+    input_tensor = torch.tensor([vocab.get(word, vocab['<unk>']) for word in user_input.split()]).unsqueeze(0)
+
+    # Verwerk de input door het model
+    with torch.no_grad():
+        encoder_outputs, encoder_hidden = encoder(input_tensor)
+        decoder_input = torch.tensor([vocab['<sos>']])
+        decoder_hidden = encoder_hidden
+
+        output_words = []
+        for _ in range(100):  # Max output length
+            decoder_output, decoder_hidden = decoder(decoder_input, decoder_hidden, encoder_outputs)
+            topv, topi = decoder_output.topk(1)
+            decoder_input = topi.squeeze().detach()
+
+            if decoder_input.item() == vocab['<eos>']:
+                break
+
+            output_words.append(vocab.get(decoder_input.item(), '<unk>'))
+
+        return ' '.join(output_words)
