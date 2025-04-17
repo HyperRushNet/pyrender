@@ -54,3 +54,35 @@ torch.save(model.decoder.state_dict(), 'model/decoder.pt')
 # Sla de vocab op
 with open('model/vocab.pkl', 'wb') as f:
     pickle.dump(vocab, f)
+
+# Functie om model en vocabulaire te laden voor de Flask-app
+def load_model_and_vocab():
+    # Laad de encoder en decoder
+    encoder = Encoder(vocab_size=len(vocab), hidden_size=hidden_dim)
+    decoder = Decoder(vocab_size=len(vocab), hidden_size=hidden_dim)
+    model = Seq2Seq(encoder, decoder)
+    
+    # Laad de gewichten van het model
+    model.encoder.load_state_dict(torch.load('model/encoder.pt'))
+    model.decoder.load_state_dict(torch.load('model/decoder.pt'))
+    
+    # Laad de vocabulaire
+    with open('model/vocab.pkl', 'rb') as f:
+        vocab = pickle.load(f)
+    
+    model.eval()  # Zet het model in evaluatiemodus
+    return model, vocab
+
+# Functie om het antwoord te genereren
+def generate_response(user_input, model, vocab):
+    # Zet de input om in een tensor (deze stap hangt af van je vocabulaire en de inputvorm)
+    input_tensor = torch.tensor([vocab[word] for word in user_input.split()]).unsqueeze(0)  # Dit is een eenvoudige conversie
+
+    # Verkrijg het modelantwoord
+    with torch.no_grad():
+        output = model(input_tensor, input_tensor)  # Dit zou de 'input_tensor' en 'target_tensor' moeten zijn
+
+    # Verwerk het modeloutput (bijvoorbeeld converteer het naar tekst)
+    output_words = [vocab.itos[idx] for idx in output.argmax(dim=-1).squeeze().cpu().numpy()]  # Zet het modeloutput om naar tekst
+
+    return ' '.join(output_words)
