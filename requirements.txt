@@ -4,5 +4,5 @@ torch
 torchvision
 numpy>=1.23.0
 gunicorn
-Seq2Seq
+seq2seq
 transformers
