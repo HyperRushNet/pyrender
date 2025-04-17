@@ -15,19 +15,25 @@ def get_ds():
 
     for line in lines:
         input_line, target_line = line.split('\t')
-        # Alleen numerieke waarden toevoegen aan target_tensor
+
+        # Voeg numerieke waarden toe aan target_tensor
         target_tensor.append([int(re.sub(r'\D', '', word)) for word in target_line.split() if re.sub(r'\D', '', word) != ''])
+
+        # Vul input_tensor en vocab met de juiste waarden
+        input_tensor.append([vocab.get(word, 0) for word in input_line.split()])  # Gebruik 0 voor onbekende woorden
         vocab.update(input_line.split())
         vocab.update(target_line.split())
 
+    # Zorg ervoor dat vocab een gesorteerde index heeft
     vocab = {word: idx for idx, word in enumerate(sorted(vocab))}
 
     # Als input_tensor leeg is, geef dan een waarschuwing en voeg een standaardinvoer toe
     if len(input_tensor) == 0:
         print("Waarschuwing: Geen invoer gevonden. Controleer de dataformaten.")
-        default_input = "i'm absolutely lovely, thank you."  # Standaardinvoer
-        input_tensor = [torch.tensor([vocab.get(word, 0) for word in default_input.split()], dtype=torch.long)]  # Standaard input als tensor
+        default_input = "Hallo, hoe gaat het?"  # Standaardinvoer
+        input_tensor = [[vocab.get(word, 0) for word in default_input.split()]]  # Standaard input als tensor
 
+    # Zorg ervoor dat de tensoren correct zijn voor input en target
     input_tensor = torch.tensor(input_tensor, dtype=torch.long)
     target_tensor = torch.tensor(target_tensor, dtype=torch.long)
 
