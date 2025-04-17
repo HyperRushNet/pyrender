@@ -22,10 +22,19 @@ def get_ds():
 
     vocab = {word: idx for idx, word in enumerate(sorted(vocab))}
 
+    # Als input_tensor leeg is, geef dan een waarschuwing en voeg een standaardinvoer toe
     if len(input_tensor) == 0:
         print("Waarschuwing: Geen invoer gevonden. Controleer de dataformaten.")
-    
-    input_tensor = torch.tensor(input_tensor)
-    target_tensor = torch.tensor(target_tensor)
+        default_input = "Hallo, hoe gaat het?"  # Standaardinvoer
+        input_tensor = [torch.tensor([vocab.get(word, 0) for word in default_input.split()], dtype=torch.long)]  # Standaard input als tensor
+
+    input_tensor = torch.tensor(input_tensor, dtype=torch.long)
+    target_tensor = torch.tensor(target_tensor, dtype=torch.long)
 
     return input_tensor, target_tensor, vocab
+
+# Verifieren of de functie werkt:
+input_tensor, target_tensor, vocab = get_ds()
+print(f"Input tensor: {input_tensor}")
+print(f"Target tensor: {target_tensor}")
+print(f"Vocabulary: {vocab}")
