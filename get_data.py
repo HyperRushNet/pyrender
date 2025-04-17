@@ -1,7 +1,7 @@
 import torch
 import requests
 
-def get_data():
+def get_ds():
     url = 'https://hyperrushnet.github.io/ai-training/data/ds1.txt'
     response = requests.get(url)
     response.raise_for_status()  # Zorg ervoor dat de request succesvol was
