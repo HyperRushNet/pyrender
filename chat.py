@@ -2,9 +2,13 @@ import os
 import torch
 import pickle
 from torch import nn
-from torch.utils.data import DataLoader, Dataset
-from model.Seq2Seq import Seq2Seq, Encoder, Decoder  # Zorg ervoor dat de imports correct zijn
+from torch.optim import Adam
+from model.Seq2Seq import Seq2Seq, Encoder, Decoder  # Correcte import van Seq2Seq
 from get_data import get_ds
+
+# Controleer of de map bestaat, zo niet maak hem aan
+if not os.path.exists('model'):
+    os.makedirs('model')
 
 # Hyperparameters
 embedding_dim = 256
@@ -13,10 +17,6 @@ num_epochs = 10
 batch_size = 64
 learning_rate = 0.001
 
-# Controleer of de map bestaat, zo niet maak hem aan
-if not os.path.exists('model'):
-    os.makedirs('model')
-
 # Verkrijg de training data
 input_tensor, target_tensor, vocab = get_ds()
 
@@ -24,7 +24,7 @@ input_tensor, target_tensor, vocab = get_ds()
 encoder = Encoder(vocab_size=len(vocab), hidden_size=hidden_dim)
 decoder = Decoder(vocab_size=len(vocab), hidden_size=hidden_dim)
 model = Seq2Seq(encoder, decoder)
-optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+optimizer = Adam(model.parameters(), lr=learning_rate)
 loss_fn = nn.CrossEntropyLoss()
 
 # Train het model
@@ -56,31 +56,12 @@ with open('model/vocab.pkl', 'wb') as f:
     pickle.dump(vocab, f)
 
 
-# Functie voor het laden van het model en vocab
-def load_model_and_vocab():
-    # Laad de vocab
-    with open('model/vocab.pkl', 'rb') as f:
-        vocab = pickle.load(f)
-
-    # Laad de model gewichten
-    encoder = Encoder(vocab_size=len(vocab), hidden_size=hidden_dim)
-    decoder = Decoder(vocab_size=len(vocab), hidden_size=hidden_dim)
-    
-    # Laad de model gewichten
-    encoder.load_state_dict(torch.load('model/encoder.pt'))
-    decoder.load_state_dict(torch.load('model/decoder.pt'))
-
-    # Zet het model in eval mode
-    encoder.eval()
-    decoder.eval()
-
-    return encoder, decoder, vocab
-
-
-# Functie om antwoord te genereren
 def generate_response(user_input, encoder, decoder, vocab):
     # Encodeer de gebruikersinvoer naar een tensor
-    input_tensor = tensor_from_sentence(vocab, user_input)
+    try:
+        input_tensor = tensor_from_sentence(vocab, user_input)
+    except KeyError as e:
+        return f"Fout bij het omzetten van de input naar tensor: {e}"
 
     # Verplaats input_tensor naar de juiste device (CPU of GPU)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -106,6 +87,11 @@ def generate_response(user_input, encoder, decoder, vocab):
         decoder_output, decoder_hidden, decoder_attention = decoder(decoder_input, decoder_hidden, encoder_outputs)
         topv, topi = decoder_output.topk(1)
         ni = topi.squeeze().item()
+
+        # Als het woord niet in het vocab zit, geef dan een foutmelding
+        if ni not in vocab:
+            return f"Onbekend woord voorspeld: {ni}"
+
         decoded_words.append(vocab.get(ni, '<UNK>'))
 
         # Als het einde van de zin is bereikt, stop dan
@@ -121,8 +107,18 @@ def generate_response(user_input, encoder, decoder, vocab):
     return response
 
 
-# Hulpfunctie om een zin om te zetten naar een tensor
-def tensor_from_sentence(vocab, sentence):
-    indexes = [vocab[word] for word in sentence.split(' ')]
-    indexes.append(vocab['<EOS>'])  # Voeg het <EOS> token toe
-    return torch.tensor(indexes, dtype=torch.long).view(-1, 1)
+def load_model_and_vocab():
+    # Laad het model en vocabulaire
+    encoder = Encoder(vocab_size=len(vocab), hidden_size=hidden_dim)
+    decoder = Decoder(vocab_size=len(vocab), hidden_size=hidden_dim)
+    model = Seq2Seq(encoder, decoder)
+
+    # Laad de opgeslagen gewichten
+    encoder.load_state_dict(torch.load('model/encoder.pt'))
+    decoder.load_state_dict(torch.load('model/decoder.pt'))
+
+    # Laad het vocabulaire
+    with open('model/vocab.pkl', 'rb') as f:
+        vocab = pickle.load(f)
+
+    return encoder, decoder, vocab
