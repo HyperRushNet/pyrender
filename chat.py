@@ -1,6 +1,6 @@
 import torch
 import pickle
-from Seq2Seq import Seq2Seq
+from Seq2Seq import seq2seq
 from torch import nn
 from torch.optim import Adam
 
