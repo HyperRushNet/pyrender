@@ -1,7 +1,8 @@
-Flask==2.1.2
-Flask-Cors==3.1.1
-torch==1.12.1
-torchvision==0.13.1
+Flask
+Flask-Cors
+torch
+torchvision
 numpy>=1.23.0
-gunicorn==20.1.0
-transformers==4.25.1
+gunicorn
+Seq2Seq
+transformers
