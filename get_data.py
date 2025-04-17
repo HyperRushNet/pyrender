@@ -21,6 +21,10 @@ def get_ds():
         vocab.update(target_line.split())
 
     vocab = {word: idx for idx, word in enumerate(sorted(vocab))}
+
+    if len(input_tensor) == 0:
+        print("Waarschuwing: Geen invoer gevonden. Controleer de dataformaten.")
+    
     input_tensor = torch.tensor(input_tensor)
     target_tensor = torch.tensor(target_tensor)
 
