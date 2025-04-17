@@ -25,7 +25,7 @@ def get_ds():
     # Als input_tensor leeg is, geef dan een waarschuwing en voeg een standaardinvoer toe
     if len(input_tensor) == 0:
         print("Waarschuwing: Geen invoer gevonden. Controleer de dataformaten.")
-        default_input = "Hallo, hoe gaat het?"  # Standaardinvoer
+        default_input = "i'm absolutely lovely, thank you."  # Standaardinvoer
         input_tensor = [torch.tensor([vocab.get(word, 0) for word in default_input.split()], dtype=torch.long)]  # Standaard input als tensor
 
     input_tensor = torch.tensor(input_tensor, dtype=torch.long)
