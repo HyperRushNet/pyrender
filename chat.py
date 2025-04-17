@@ -62,7 +62,7 @@ def tensor_from_sentence(vocab, sentence):
     for word in sentence.split(' '):
         if word not in vocab:
             print(f"Adding new word to vocab: {word}")
-            vocab[word] = len(vocab)
+            vocab[word] = len(vocab)  # Voeg nieuw woord toe aan vocabulaire
         indices.append(vocab[word])
 
     print(f"Generated indices: {indices}")
