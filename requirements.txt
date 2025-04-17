@@ -3,5 +3,5 @@ Flask-Cors
 torch
 torchvision
 numpy
-pickle5==0.0.10
+pickle
 gunicorn
