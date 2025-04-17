@@ -1,7 +1,8 @@
 import torch
 import requests
-import re  # Vergeet deze import niet!
+import re
 
+# Functie om het dataset te verkrijgen
 def get_ds():
     url = 'https://hyperrushnet.github.io/ai-training/data/ds1.txt'
     response = requests.get(url)
@@ -11,36 +12,83 @@ def get_ds():
 
     input_tensor = []
     target_tensor = []
-    vocab = set()
+    vocab = {}  # Gebruik een dictionary voor vocab in plaats van een set
 
+    # Verwerk de lijnen en vul input_tensor, target_tensor en vocab
     for line in lines:
         input_line, target_line = line.split('\t')
+        
+        # Vul vocab bij met woorden en geef ze een index
+        for word in input_line.split():
+            if word not in vocab:
+                vocab[word] = len(vocab)
+        for word in target_line.split():
+            if word not in vocab:
+                vocab[word] = len(vocab)
 
-        # Voeg numerieke waarden toe aan target_tensor
+        # Voeg de input_line en target_line toe aan de tensors
+        input_tensor.append([vocab.get(word, 0) for word in input_line.split()])  # Gebruik 0 voor onbekende woorden
         target_tensor.append([int(re.sub(r'\D', '', word)) for word in target_line.split() if re.sub(r'\D', '', word) != ''])
 
-        # Vul input_tensor en vocab met de juiste waarden
-        input_tensor.append([vocab.get(word, 0) for word in input_line.split()])  # Gebruik 0 voor onbekende woorden
-        vocab.update(input_line.split())
-        vocab.update(target_line.split())
-
-    # Zorg ervoor dat vocab een gesorteerde index heeft
-    vocab = {word: idx for idx, word in enumerate(sorted(vocab))}
-
-    # Als input_tensor leeg is, geef dan een waarschuwing en voeg een standaardinvoer toe
+    # Controleer of input_tensor leeg is
     if len(input_tensor) == 0:
         print("Waarschuwing: Geen invoer gevonden. Controleer de dataformaten.")
-        default_input = "Hallo, hoe gaat het?"  # Standaardinvoer
-        input_tensor = [[vocab.get(word, 0) for word in default_input.split()]]  # Standaard input als tensor
 
-    # Zorg ervoor dat de tensoren correct zijn voor input en target
+    # Zet input_tensor en target_tensor om naar PyTorch tensors
     input_tensor = torch.tensor(input_tensor, dtype=torch.long)
     target_tensor = torch.tensor(target_tensor, dtype=torch.long)
 
     return input_tensor, target_tensor, vocab
 
-# Verifieren of de functie werkt:
-input_tensor, target_tensor, vocab = get_ds()
-print(f"Input tensor: {input_tensor}")
-print(f"Target tensor: {target_tensor}")
-print(f"Vocabulary: {vocab}")
+
+# Laad het model en vocabulaire (deze functie kan afhankelijk van je modelstructuur worden aangepast)
+def load_model_and_vocab():
+    # Laad het dataset
+    input_tensor, target_tensor, vocab = get_ds()
+
+    # Stel het model en andere nodige variabelen in (dit hangt af van je modelimplementatie)
+    # Bijvoorbeeld, als je een model hebt:
+    # model = YourModel()
+    # model.load_state_dict(torch.load("your_model.pth"))
+    # model.eval()
+
+    return input_tensor, target_tensor, vocab
+
+
+# Genereer een response (geeft bijvoorbeeld een vertaling of een voorspelling)
+def generate_response(input_text):
+    input_tensor, target_tensor, vocab = load_model_and_vocab()
+
+    # Verwerk de input (afhankelijk van je modelstructuur)
+    input_indices = [vocab.get(word, 0) for word in input_text.split()]
+    input_tensor = torch.tensor([input_indices], dtype=torch.long)
+
+    # Zorg ervoor dat je je model hier gebruikt om een output te genereren
+    # Bijvoorbeeld, als je model een vertaling genereert:
+    # output_tensor = model(input_tensor)
+    
+    # Veronderstel dat we de target_tensor gebruiken voor een vertaling
+    output = target_tensor  # Dit is slechts een placeholder, vervang dit door je modeloutput.
+
+    # Maak de output begrijpelijk
+    output_text = " ".join([list(vocab.keys())[list(vocab.values()).index(idx)] for idx in output[0]])
+
+    return output_text
+
+
+# Flask applicatie om een webservice te draaien
+from flask import Flask, request, jsonify
+app = Flask(__name__)
+
+@app.route('/generate', methods=['POST'])
+def api_generate():
+    input_data = request.json.get("input", "")
+    if not input_data:
+        return jsonify({"error": "Geen invoer gegeven"}), 400
+
+    response = generate_response(input_data)
+    return jsonify({"response": response})
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
