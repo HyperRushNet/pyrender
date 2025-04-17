@@ -1,40 +1,48 @@
 import torch
-import torch.optim as optim
-from Seq2Seq import Encoder, Decoder, Seq2Seq
-from torch.utils.data import DataLoader
-from vocab import Vocabulary
+import pickle
+from torch import nn
+from torch.optim import Adam
+from Seq2Seq import Seq2Seq
+from training_data import get_data
 
-# Laad de trainingsdata en vocabulaire
-# Veronderstel dat je get_data van de data zelf hebt
-data = get_data('training_data/ds1.txt')
-vocab = Vocabulary(data)
-train_loader = DataLoader(data, batch_size=32, shuffle=True)
+# Hyperparameters
+embedding_dim = 256
+hidden_dim = 512
+num_epochs = 10
+batch_size = 64
+learning_rate = 0.001
+
+# Verkrijg de training data
+input_tensor, target_tensor, vocab = get_data()
 
 # Initialiseer het model
-encoder = Encoder(vocab.size)
-decoder = Decoder(vocab.size)
-model = Seq2Seq(encoder, decoder)
-
-# Definieer de optimizer en loss functie
-optimizer = optim.Adam(model.parameters())
-loss_fn = torch.nn.CrossEntropyLoss()
+model = Seq2Seq(input_dim=len(vocab), output_dim=len(vocab), embedding_dim=embedding_dim, hidden_dim=hidden_dim)
+optimizer = Adam(model.parameters(), lr=learning_rate)
+loss_fn = nn.CrossEntropyLoss()
 
 # Train het model
-epochs = 10
-for epoch in range(epochs):
-    total_loss = 0
-    for batch in train_loader:
-        input_seq, target_seq = batch
+for epoch in range(num_epochs):
+    model.train()
+    for i in range(0, len(input_tensor), batch_size):
+        # Haal een batch van de data
+        inputs = input_tensor[i:i + batch_size]
+        targets = target_tensor[i:i + batch_size]
+
+        # Voer een forward pass uit
+        output = model(inputs, targets)
+        loss = loss_fn(output, targets)
+
+        # Voer backpropagation uit
         optimizer.zero_grad()
-        output_seq = model(input_seq, target_seq)
-        loss = loss_fn(output_seq.view(-1, vocab.size), target_seq.view(-1))
         loss.backward()
         optimizer.step()
-        total_loss += loss.item()
 
-    print(f'Epoch {epoch+1}/{epochs}, Loss: {total_loss/len(train_loader)}')
+    print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {loss.item()}")
 
-# Sla het getrainde model op
-torch.save(encoder.state_dict(), 'model/encoder.pt')
-torch.save(decoder.state_dict(), 'model/decoder.pt')
-torch.save(vocab, 'model/vocab.pkl')
+# Sla het model op
+torch.save(model.encoder, 'model/encoder.pt')
+torch.save(model.decoder, 'model/decoder.pt')
+
+# Sla de vocab op
+with open('model/vocab.pkl', 'wb') as f:
+    pickle.dump(vocab, f)
