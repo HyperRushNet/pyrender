@@ -44,7 +44,8 @@ for epoch in range(num_epochs):
         loss.backward()
         optimizer.step()
 
-    print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {loss.item()}")
+        # Print de loss voor elke batch
+        print(f"Epoch {epoch + 1}/{num_epochs}, Batch {i // batch_size + 1}, Loss: {loss.item()}")
 
 # Sla het model op (gebruik state_dict voor het opslaan van de gewichten)
 torch.save(model.encoder.state_dict(), 'model/encoder.pt')
