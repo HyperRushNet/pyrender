@@ -3,7 +3,7 @@ import torch
 import pickle
 from torch import nn
 from torch.optim import Adam
-from model.Seq2Seq import Seq2Seq, Encoder, Decoder  # Correcte import van Seq2Seq
+from model.Seq2Seq import Seq2Seq, Encoder, Decoder
 from get_data import get_ds
 
 # Controleer of de map bestaat, zo niet maak hem aan
@@ -56,6 +56,19 @@ with open('model/vocab.pkl', 'wb') as f:
     pickle.dump(vocab, f)
 
 
+def tensor_from_sentence(vocab, sentence):
+    # Zet de zin om naar een lijst van indices, update het vocabulaire als een woord niet bestaat
+    indices = []
+    for word in sentence.split(' '):
+        if word not in vocab:
+            # Voeg het nieuwe woord toe aan het vocabulaire (gebruik een nieuw index voor nieuwe woorden)
+            vocab[word] = len(vocab)
+        indices.append(vocab[word])
+
+    # Zet de lijst van indices om naar een tensor
+    return torch.tensor(indices, dtype=torch.long).view(-1, 1)
+
+
 def generate_response(user_input, encoder, decoder, vocab):
     # Encodeer de gebruikersinvoer naar een tensor
     try:
@@ -88,10 +101,6 @@ def generate_response(user_input, encoder, decoder, vocab):
         topv, topi = decoder_output.topk(1)
         ni = topi.squeeze().item()
 
-        # Als het woord niet in het vocab zit, geef dan een foutmelding
-        if ni not in vocab:
-            return f"Onbekend woord voorspeld: {ni}"
-
         decoded_words.append(vocab.get(ni, '<UNK>'))
 
         # Als het einde van de zin is bereikt, stop dan
@@ -103,6 +112,10 @@ def generate_response(user_input, encoder, decoder, vocab):
 
     # Zet de gegenereerde woorden om naar een zin
     response = ' '.join(decoded_words)
+
+    # Sla het vocab op nadat de gebruikersinvoer is verwerkt
+    with open('model/vocab.pkl', 'wb') as f:
+        pickle.dump(vocab, f)
 
     return response
 
