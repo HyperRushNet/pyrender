@@ -2,6 +2,6 @@ Flask
 Flask-Cors
 torch
 torchvision
-numpy
+numpy==1.21.6
 gunicorn
 Seq2Seq
