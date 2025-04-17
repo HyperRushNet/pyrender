@@ -15,8 +15,8 @@ def get_ds():
 
     for line in lines:
         input_line, target_line = line.split('\t')
-        input_tensor.append([int(re.sub(r'\D', '', word)) for word in input_line.split() if re.sub(r'\D', '', word) != ''])
-        target_tensor.append([int(word) for word in target_line.split()])
+        # Alleen numerieke waarden toevoegen aan target_tensor
+        target_tensor.append([int(re.sub(r'\D', '', word)) for word in target_line.split() if re.sub(r'\D', '', word) != ''])
         vocab.update(input_line.split())
         vocab.update(target_line.split())
 
