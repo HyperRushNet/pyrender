@@ -3,7 +3,7 @@ import pickle
 from torch import nn
 from torch.optim import Adam
 from model.Seq2Seq import Seq2Seq, Encoder, Decoder
-from training_data.get_data import get_data
+from get_data import get_data
 
 # Hyperparameters
 embedding_dim = 256
