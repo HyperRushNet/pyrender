@@ -30,7 +30,6 @@ loss_fn = nn.CrossEntropyLoss()
 # Train het model
 for epoch in range(num_epochs):
     model.train()
-    total_loss = 0  # Houdt de totale loss bij voor deze epoch
     for i in range(0, len(input_tensor), batch_size):
         # Haal een batch van de data
         inputs = input_tensor[i:i + batch_size]
@@ -45,20 +44,15 @@ for epoch in range(num_epochs):
         loss.backward()
         optimizer.step()
 
-        # Accumuleer de loss
-        total_loss += loss.item()
+    print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {loss.item()}")
 
-    # Print de gemiddelde loss per epoch
-    print(f"Epoch {epoch + 1}/{num_epochs}, Average Loss: {total_loss / len(input_tensor)}")
-
-# Sla het model op
+# Sla het model op (encoder, decoder)
 torch.save(model.encoder.state_dict(), 'model/encoder.pt')
 torch.save(model.decoder.state_dict(), 'model/decoder.pt')
 
 # Sla de vocab op
 with open('model/vocab.pkl', 'wb') as f:
     pickle.dump(vocab, f)
-
 
 def tensor_from_sentence(vocab, sentence):
     # Zet de zin om naar een lijst van indices, update het vocabulaire als een woord niet bestaat
@@ -68,30 +62,18 @@ def tensor_from_sentence(vocab, sentence):
             print(f"Adding new word to vocab: {word}")
             vocab[word] = len(vocab)
         indices.append(vocab[word])
-
-    print(f"Generated indices: {indices}")
     return torch.tensor(indices, dtype=torch.long).view(-1, 1)
 
-
 def generate_response(user_input, encoder, decoder, vocab):
-    print(f"Current vocab size: {len(vocab)}")
     print(f"User input: {user_input}")
-
-    try:
-        input_tensor = tensor_from_sentence(vocab, user_input)
-    except KeyError as e:
-        return f"Fout bij het omzetten van de input naar tensor: {e}"
-
+    input_tensor = tensor_from_sentence(vocab, user_input)
+    
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     input_tensor = input_tensor.to(device)
 
-    # Initialiseer de verborgen toestand van de encoder
     encoder_hidden = encoder(input_tensor)
 
-    # Start met de decoderinvoer als <SOS>
     decoder_input = torch.tensor([[vocab.get('<SOS>', 0)]]).to(device)
-
-    # Initialiseer de verborgen toestand van de decoder
     decoder_hidden = encoder_hidden
 
     decoded_words = []
@@ -101,24 +83,20 @@ def generate_response(user_input, encoder, decoder, vocab):
         topv, topi = decoder_output.topk(1)
         ni = topi.squeeze().item()
 
-        # Voeg het gegenereerde woord toe aan de lijst
         decoded_words.append(vocab.get(ni, '<UNK>'))
 
-        # Stop als we het <EOS> token bereiken
         if ni == vocab.get('<EOS>', -1):
             break
 
-        # De nieuwe decoderinput is het laatst voorspelde token
         decoder_input = torch.tensor([[ni]]).to(device)
 
     response = ' '.join(decoded_words)
-    
+
     # Update vocab en sla op
     with open('model/vocab.pkl', 'wb') as f:
         pickle.dump(vocab, f)
 
     return response
-
 
 def load_model_and_vocab():
     # Laad het vocabulaire
