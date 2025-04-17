@@ -60,37 +60,34 @@
     <h2>Chatbot</h2>
     <div class="messages" id="messages"></div>
     <div class="input-container">
-        <input type="text" id="user-input" placeholder="Type your message here...">
+        <input type="text" id="user_input" placeholder="Type a message...">
         <button onclick="sendMessage()">Send</button>
     </div>
 </div>
 
 <script>
     function sendMessage() {
-        let userInput = document.getElementById('user-input').value;
-        if (userInput.trim() === "") return;
+        let userInput = document.getElementById('user_input').value;
+        if (userInput.trim() !== "") {
+            let messagesDiv = document.getElementById('messages');
+            messagesDiv.innerHTML += "<p><strong>You:</strong> " + userInput + "</p>";
 
-        // Toon de gebruikersinput in het chatvenster
-        let messagesDiv = document.getElementById('messages');
-        messagesDiv.innerHTML += "<p><strong>You:</strong> " + userInput + "</p>";
+            fetch('/chat?q=' + encodeURIComponent(userInput))
+                .then(response => response.json())
+                .then(data => {
+                    if (data.response) {
+                        messagesDiv.innerHTML += "<p><strong>Bot:</strong> " + data.response + "</p>";
+                    } else if (data.error) {
+                        messagesDiv.innerHTML += "<p><strong>Bot:</strong> " + data.error + "</p>";
+                    }
+                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                })
+                .catch(error => {
+                    messagesDiv.innerHTML += "<p><strong>Bot:</strong> There was an error with your request.</p>";
+                });
 
-        // Maak de input leeg
-        document.getElementById('user-input').value = "";
-
-        // Verzenden naar de server
-        fetch(`/chat?q=${encodeURIComponent(userInput)}`)
-            .then(response => response.json())
-            .then(data => {
-                let response = data.response || data.error;
-                messagesDiv.innerHTML += "<p><strong>Bot:</strong> " + response + "</p>";
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                messagesDiv.innerHTML += "<p><strong>Bot:</strong> Sorry, something went wrong. Try again later.</p>";
-            });
-
-        // Scroll naar beneden
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            document.getElementById('user_input').value = '';
+        }
     }
 </script>
 
