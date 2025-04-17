@@ -29,5 +29,4 @@ def chat():
         return jsonify({'error': f'Er is een fout opgetreden: {str(e)}'}), 500
 
 if __name__ == '__main__':
-    # Start de Flask app
     app.run(debug=True)
