@@ -20,11 +20,13 @@ learning_rate = 0.001
 # Verkrijg de training data
 input_tensor, target_tensor, vocab = get_ds()
 
-# Voeg <SOS> en <EOS> toe aan het vocabulaire
+# Voeg speciale tokens toe als ze nog niet in het vocab zitten
 if '<SOS>' not in vocab:
     vocab['<SOS>'] = len(vocab)
 if '<EOS>' not in vocab:
     vocab['<EOS>'] = len(vocab)
+if '<UNK>' not in vocab:
+    vocab['<UNK>'] = len(vocab)
 
 # Initialiseer het model
 encoder = Encoder(vocab_size=len(vocab), hidden_size=hidden_dim)
@@ -86,8 +88,11 @@ def generate_response(user_input, encoder, decoder, vocab):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     input_tensor = input_tensor.to(device)
 
+    # Initialiseer de hidden states van de encoder
+    encoder_hidden = encoder(input_tensor)  # Geen init_hidden nodig
+
     # Verkrijg de output van de encoder
-    encoder_outputs, encoder_hidden = encoder(input_tensor)
+    encoder_outputs = encoder_hidden
 
     # Initialiseer de input voor de decoder (start token)
     decoder_input = torch.tensor([[vocab['<SOS>']]]).to(device)
