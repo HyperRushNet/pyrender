@@ -2,7 +2,7 @@ import torch
 import pickle
 from torch import nn
 from torch.optim import Adam
-from model.Seq2Seq import Seq2Seq  # Correcte import van Seq2Seq
+from model.Seq2Seq import Seq2Seq, Encoder, Decoder  # Importeren van Encoder, Decoder en Seq2Seq
 from get_data import get_ds
 
 # Hyperparameters
@@ -15,10 +15,14 @@ learning_rate = 0.001
 # Verkrijg de training data
 input_tensor, target_tensor, vocab = get_ds()
 
-# Initialiseer het model
+# Initialiseer de Encoder en Decoder (indien nodig)
 encoder = Encoder(vocab_size=len(vocab), hidden_size=hidden_dim)
 decoder = Decoder(vocab_size=len(vocab), hidden_size=hidden_dim)
+
+# Initialiseer het Seq2Seq model
 model = Seq2Seq(encoder, decoder)
+
+# Definieer de optimizer en loss function
 optimizer = Adam(model.parameters(), lr=learning_rate)
 loss_fn = nn.CrossEntropyLoss()
 
