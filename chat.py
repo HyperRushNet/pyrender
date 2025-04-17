@@ -1,9 +1,14 @@
+import os
 import torch
 import pickle
 from torch import nn
 from torch.optim import Adam
-from model.Seq2Seq import Seq2Seq, Encoder, Decoder  # Importeren van Encoder, Decoder en Seq2Seq
+from model.Seq2Seq import Seq2Seq, Encoder, Decoder  # Correcte import van Seq2Seq
 from get_data import get_ds
+
+# Controleer of de map bestaat, zo niet maak hem aan
+if not os.path.exists('model'):
+    os.makedirs('model')
 
 # Hyperparameters
 embedding_dim = 256
@@ -15,14 +20,10 @@ learning_rate = 0.001
 # Verkrijg de training data
 input_tensor, target_tensor, vocab = get_ds()
 
-# Initialiseer de Encoder en Decoder (indien nodig)
+# Initialiseer het model
 encoder = Encoder(vocab_size=len(vocab), hidden_size=hidden_dim)
 decoder = Decoder(vocab_size=len(vocab), hidden_size=hidden_dim)
-
-# Initialiseer het Seq2Seq model
 model = Seq2Seq(encoder, decoder)
-
-# Definieer de optimizer en loss function
 optimizer = Adam(model.parameters(), lr=learning_rate)
 loss_fn = nn.CrossEntropyLoss()
 
@@ -45,9 +46,9 @@ for epoch in range(num_epochs):
 
     print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {loss.item()}")
 
-# Sla het model op
-torch.save(model.encoder, 'model/encoder.pt')
-torch.save(model.decoder, 'model/decoder.pt')
+# Sla het model op (gebruik state_dict voor het opslaan van de gewichten)
+torch.save(model.encoder.state_dict(), 'model/encoder.pt')
+torch.save(model.decoder.state_dict(), 'model/decoder.pt')
 
 # Sla de vocab op
 with open('model/vocab.pkl', 'wb') as f:
