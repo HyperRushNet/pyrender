@@ -27,32 +27,36 @@ model = Seq2Seq(encoder, decoder)
 optimizer = Adam(model.parameters(), lr=learning_rate)
 loss_fn = nn.CrossEntropyLoss()
 
-# Train het model
-for epoch in range(num_epochs):
-    model.train()
-    for i in range(0, len(input_tensor), batch_size):
-        # Haal een batch van de data
-        inputs = input_tensor[i:i + batch_size]
-        targets = target_tensor[i:i + batch_size]
+# Train het model (deze code kan je tijdelijk uitschakelen voor productie)
+# Als je het model al getraind hebt, sla deze sectie over.
+train_model = False  # Zet dit op False als je het model niet wilt trainen
 
-        # Voer een forward pass uit
-        output = model(inputs, targets)
-        loss = loss_fn(output.view(-1, len(vocab)), targets.view(-1))
+if train_model:
+    for epoch in range(num_epochs):
+        model.train()
+        for i in range(0, len(input_tensor), batch_size):
+            # Haal een batch van de data
+            inputs = input_tensor[i:i + batch_size]
+            targets = target_tensor[i:i + batch_size]
 
-        # Voer backpropagation uit
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+            # Voer een forward pass uit
+            output = model(inputs, targets)
+            loss = loss_fn(output.view(-1, len(vocab)), targets.view(-1))
 
-    print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {loss.item()}")
+            # Voer backpropagation uit
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
-# Sla het model op (encoder, decoder)
-torch.save(model.encoder.state_dict(), 'model/encoder.pt')
-torch.save(model.decoder.state_dict(), 'model/decoder.pt')
+        print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {loss.item()}")
 
-# Sla de vocab op
-with open('model/vocab.pkl', 'wb') as f:
-    pickle.dump(vocab, f)
+    # Sla het model op (encoder, decoder)
+    torch.save(model.encoder.state_dict(), 'model/encoder.pt')
+    torch.save(model.decoder.state_dict(), 'model/decoder.pt')
+
+    # Sla de vocab op
+    with open('model/vocab.pkl', 'wb') as f:
+        pickle.dump(vocab, f)
 
 def tensor_from_sentence(vocab, sentence):
     # Zet de zin om naar een lijst van indices, update het vocabulaire als een woord niet bestaat
