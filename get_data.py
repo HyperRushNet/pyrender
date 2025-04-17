@@ -1,5 +1,6 @@
 import torch
 import requests
+import re
 
 def get_ds():
     url = 'https://hyperrushnet.github.io/ai-training/data/ds1.txt'
