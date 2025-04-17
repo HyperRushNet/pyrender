@@ -2,7 +2,7 @@ import torch
 import pickle
 from torch import nn
 from torch.optim import Adam
-from seq2seq import Seq2Seq
+from Seq2Seq import Seq2Seq
 from training_data import get_data
 
 # Hyperparameters
