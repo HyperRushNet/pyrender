@@ -3,7 +3,7 @@ import pickle
 from torch import nn
 from torch.optim import Adam
 from model.Seq2Seq import Seq2Seq, Encoder, Decoder
-from get_data import get_data
+from get_data import get_ds
 
 # Hyperparameters
 embedding_dim = 256
@@ -13,7 +13,7 @@ batch_size = 64
 learning_rate = 0.001
 
 # Verkrijg de training data
-input_tensor, target_tensor, vocab = get_data()
+input_tensor, target_tensor, vocab = get_ds()
 
 # Initialiseer het model
 encoder = Encoder(vocab_size=len(vocab), hidden_size=hidden_dim)
