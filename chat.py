@@ -29,7 +29,7 @@ loss_fn = nn.CrossEntropyLoss()
 
 # Train het model (deze code kan je tijdelijk uitschakelen voor productie)
 # Als je het model al getraind hebt, sla deze sectie over.
-train_model = False  # Zet dit op False als je het model niet wilt trainen
+train_model = True  # Zet dit op False als je het model niet wilt trainen
 
 if train_model:
     for epoch in range(num_epochs):
