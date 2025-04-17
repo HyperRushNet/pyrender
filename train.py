@@ -2,8 +2,8 @@ import torch
 import pickle
 from torch import nn
 from torch.optim import Adam
-from model.Seq2Seq import Seq2Seq  # Correcte import van Seq2Seq
-from training_data import get_data
+from model.Seq2Seq import Seq2Seq, Encoder, Decoder
+from training_data.get_data import get_data
 
 # Hyperparameters
 embedding_dim = 256
@@ -18,7 +18,7 @@ input_tensor, target_tensor, vocab = get_data()
 # Initialiseer het model
 encoder = Encoder(vocab_size=len(vocab), hidden_size=hidden_dim)
 decoder = Decoder(vocab_size=len(vocab), hidden_size=hidden_dim)
-model = Seq2Seq(encoder, decoder)  # Hier wordt je Seq2Seq model aangemaakt
+model = Seq2Seq(encoder, decoder)
 optimizer = Adam(model.parameters(), lr=learning_rate)
 loss_fn = nn.CrossEntropyLoss()
 
@@ -32,7 +32,7 @@ for epoch in range(num_epochs):
 
         # Voer een forward pass uit
         output = model(inputs, targets)
-        loss = loss_fn(output.view(-1, len(vocab)), targets.view(-1))  # Zorg dat de output een juiste vorm heeft
+        loss = loss_fn(output.view(-1, len(vocab)), targets.view(-1))
 
         # Voer backpropagation uit
         optimizer.zero_grad()
@@ -42,8 +42,8 @@ for epoch in range(num_epochs):
     print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {loss.item()}")
 
 # Sla het model op
-torch.save(model.encoder, 'model/encoder.pt')
-torch.save(model.decoder, 'model/decoder.pt')
+torch.save(model.encoder.state_dict(), 'model/encoder.pt')
+torch.save(model.decoder.state_dict(), 'model/decoder.pt')
 
 # Sla de vocab op
 with open('model/vocab.pkl', 'wb') as f:
