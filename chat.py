@@ -97,7 +97,7 @@ def generate_response(user_input, encoder, decoder, vocab):
 
     # Genereer het antwoord (max 10 stappen bijvoorbeeld)
     for di in range(10):
-        decoder_output, decoder_hidden, decoder_attention = decoder(decoder_input, decoder_hidden, encoder_outputs)
+        decoder_output, decoder_hidden = decoder(decoder_input, decoder_hidden)
         topv, topi = decoder_output.topk(1)
         ni = topi.squeeze().item()
 
