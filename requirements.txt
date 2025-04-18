@@ -1,4 +1,5 @@
 Flask
 tensorflow
 numpy
-gunicorn
+h5py
+pickle-mixin
