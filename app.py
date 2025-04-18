@@ -1,10 +1,10 @@
+import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from flask import Flask, request, jsonify
 import random
 import string
-import os  # Voor omgevingsvariabele
 
 # Flask app
 app = Flask(__name__)
@@ -105,6 +105,6 @@ def predict():
     return jsonify({'generated_text': generated_text})
 
 if __name__ == '__main__':
-    # Verkrijg poort uit omgevingsvariabele, anders 8080
+    # Verkrijg de poort uit de omgevingsvariabele (standaard 8080 als deze niet is ingesteld)
     port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port)
