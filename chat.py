@@ -2,30 +2,25 @@ import os
 import pickle
 
 def load_model_and_vocab():
-    # Pad naar de model map
-    model_dir = './model'
-    
-    # Bestanden in de model map
-    vocab_file = os.path.join(model_dir, 'vocab.pkl')
-    model_file = os.path.join(model_dir, 'model.pkl')
+    # Definieer het pad naar de modelbestanden
+    tmp_dir = './model'
 
-    # Debugging: Controleer of de bestanden bestaan
-    print(f"Bestand vocab: {os.path.exists(vocab_file)}")
-    print(f"Bestand model: {os.path.exists(model_file)}")
+    # Zorg ervoor dat de map bestaat
+    if not os.path.exists(tmp_dir):
+        raise FileNotFoundError(f"De map '{tmp_dir}' bestaat niet.")
 
-    # Laad het vocab bestand
+    # Probeer de vocab en het model bestand te laden
     try:
-        with open(vocab_file, 'rb') as f:
+        with open(f'{tmp_dir}/vocab.pkl', 'rb') as f:
             vocab = pickle.load(f)
     except FileNotFoundError:
-        raise FileNotFoundError(f"Het bestand '{vocab_file}' is niet gevonden.")
+        raise FileNotFoundError(f"Het bestand '{tmp_dir}/vocab.pkl' is niet gevonden.")
 
-    # Laad het model bestand
     try:
-        with open(model_file, 'rb') as f:
+        with open(f'{tmp_dir}/model.pkl', 'rb') as f:
             model = pickle.load(f)
     except FileNotFoundError:
-        raise FileNotFoundError(f"Het bestand '{model_file}' is niet gevonden.")
+        raise FileNotFoundError(f"Het bestand '{tmp_dir}/model.pkl' is niet gevonden.")
 
-    # Retourneer model en vocab
+    # Retourneer geladen model en vocab
     return model, vocab
