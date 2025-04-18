@@ -4,12 +4,10 @@ import torch.optim as optim
 from flask import Flask, request, jsonify
 import random
 import string
+import os  # Voor omgevingsvariabele
 
 # Flask app
 app = Flask(__name__)
-
-const port = process.env.PORT || 8080;
-
 
 # Model definitie
 class TextGenerationModel(nn.Module):
@@ -107,4 +105,6 @@ def predict():
     return jsonify({'generated_text': generated_text})
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080)  # of een andere poort zoals 5000
+    # Verkrijg poort uit omgevingsvariabele, anders 8080
+    port = int(os.environ.get('PORT', 8080))
+    app.run(host='0.0.0.0', port=port)
