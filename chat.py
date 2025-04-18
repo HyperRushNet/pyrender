@@ -1,33 +1,70 @@
-import os
-import pickle
 import torch
+import pickle
 from model.Seq2Seq import Seq2Seq, Encoder, Decoder
 
 # Zorg ervoor dat het model naar de juiste device wordt gestuurd (GPU of CPU)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Zorg ervoor dat de tijdelijke map wordt aangemaakt
-tmp_dir = './tmp'
-os.makedirs(tmp_dir, exist_ok=True)  # Maakt de map aan als deze nog niet bestaat
-
 # Laad het vocabulaire en model
 def load_model_and_vocab():
-    vocab_path = os.path.join(tmp_dir, 'vocab.pkl')
-    encoder_path = os.path.join(tmp_dir, 'encoder.pt')
-    decoder_path = os.path.join(tmp_dir, 'decoder.pt')
+    # Gebruik het nieuwe pad naar de tijdelijke map
+    tmp_dir = './tmp'
 
-    # Laad het vocabulaire uit de tijdelijke map
-    with open(vocab_path, 'rb') as f:
-        vocab = pickle.load(f)
+    # Laad het vocabulaire
+    try:
+        with open(f'{tmp_dir}/vocab.pkl', 'rb') as f:
+            vocab = pickle.load(f)
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Het bestand '{tmp_dir}/vocab.pkl' is niet gevonden.")
 
-    # Laad het model uit de tijdelijke map
+    # Laad het model
     encoder = Encoder(vocab_size=len(vocab), hidden_size=512)
     decoder = Decoder(vocab_size=len(vocab), hidden_size=512)
     model = Seq2Seq(encoder, decoder)
     model.to(device)  # Verplaats het model naar de juiste device
 
     # Laad de opgeslagen gewichten
-    encoder.load_state_dict(torch.load(encoder_path))
-    decoder.load_state_dict(torch.load(decoder_path))
+    try:
+        encoder.load_state_dict(torch.load(f'{tmp_dir}/encoder.pt'))
+        decoder.load_state_dict(torch.load(f'{tmp_dir}/decoder.pt'))
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Het bestand '{tmp_dir}/encoder.pt' of '{tmp_dir}/decoder.pt' is niet gevonden.")
 
     return encoder, decoder, vocab
+
+# Functie om een reactie van de gebruiker te genereren
+def generate_response(user_input, encoder, decoder, vocab):
+    print(f"User input: {user_input}")
+    input_tensor = tensor_from_sentence(vocab, user_input)
+    
+    input_tensor = input_tensor.to(device)  # Verplaats de input tensor naar de juiste device
+
+    # Verkrijg de verborgen toestand van de encoder
+    encoder_output, encoder_hidden = encoder(input_tensor)
+
+    # Debug: Controleer de vorm van de encoderoutput
+    print(f"Encoder hidden state shape: {encoder_hidden[0].shape}")  # Controleer de vorm van de eerste laag van de encoder
+
+    decoder_input = torch.tensor([[vocab.get('<SOS>', 0)]]).to(device)  # Gebruik <SOS> token voor de decoder input
+
+    # De eerste verborgen toestand van de encoder wordt gebruikt voor de decoder
+    decoder_hidden = encoder_hidden[0]  # Neem de eerste waarde van de encoderoutput als verborgen toestand
+
+    decoded_words = []
+
+    for di in range(10):  # Aantal stappen in de decodering (max 10)
+        decoder_output, decoder_hidden = decoder(decoder_input, decoder_hidden)  # Voer de decoder door
+        topv, topi = decoder_output.topk(1)  # Haal het meest waarschijnlijke token uit
+        ni = topi.squeeze().item()
+
+        decoded_words.append(vocab.get(ni, '<UNK>'))
+
+        if ni == vocab.get('<EOS>', -1):  # Stop als je het <EOS> token bereikt
+            break
+
+        decoder_input = torch.tensor([[ni]]).to(device)  # Geef het nieuwe token door aan de decoder
+
+    response = ' '.join(decoded_words)
+
+    return response
+
