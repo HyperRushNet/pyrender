@@ -49,6 +49,10 @@ if train_model:
             inputs = input_tensor[i:i + batch_size]
             targets = target_tensor[i:i + batch_size]
 
+            # Verplaats de gegevens naar de juiste device
+            inputs = inputs.to(device)
+            targets = targets.to(device)
+
             # Voer een forward pass uit
             output = model(inputs, targets)
             loss = loss_fn(output.view(-1, len(vocab)), targets.view(-1))
@@ -95,10 +99,10 @@ def generate_response(user_input, encoder, decoder, vocab):
 
     # Debug: Controleer de vorm van de encoderoutput
     print(f"Encoder hidden state shape: {encoder_hidden[0].shape}")  # Controleer de vorm van de eerste laag van de encoder
-
-    decoder_input = torch.tensor([[vocab.get('<SOS>', 0)]]).to(device)  # Gebruik <SOS> token voor de decoder input
+    print(f"Encoder output shape: {encoder_output.shape}")  # Controleer de vorm van de encoder output
 
     # De eerste verborgen toestand van de encoder wordt gebruikt voor de decoder
+    decoder_input = torch.tensor([[vocab.get('<SOS>', 0)]]).to(device)  # Gebruik <SOS> token voor de decoder input
     decoder_hidden = encoder_hidden[0]  # Neem de eerste waarde van de encoderoutput als verborgen toestand
 
     decoded_words = []
