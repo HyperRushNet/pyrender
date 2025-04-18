@@ -89,26 +89,27 @@ def generate_response(user_input, encoder, decoder, vocab):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     input_tensor = input_tensor.to(device)
 
-    # Voer de encoding uit
     encoder_hidden = encoder(input_tensor)
 
-    # Zorg ervoor dat de decoder de juiste verborgen toestand ontvangt
-    decoder_input = torch.tensor([[vocab.get('<SOS>', 0)]]).to(device)
-    decoder_hidden = encoder_hidden[0]  # Gebruik alleen de eerste waarde van encoder output
+    # Als de encoder meerdere outputs geeft, gebruik alleen de verborgen toestand (hidden state)
+    encoder_hidden = encoder_hidden[0]  # Neem de eerste waarde als de verborgen toestand
+
+    decoder_input = torch.tensor([[vocab.get('<SOS>', 0)]]).to(device)  # Gebruik <SOS> token voor de decoder input
+    decoder_hidden = encoder_hidden  # Het verborgen toestand komt van de encoder
 
     decoded_words = []
 
     for di in range(10):  # Aantal stappen in de decodering (max 10)
-        decoder_output, decoder_hidden = decoder(decoder_input, decoder_hidden)
-        topv, topi = decoder_output.topk(1)
+        decoder_output, decoder_hidden = decoder(decoder_input, decoder_hidden)  # Voer de decoder door
+        topv, topi = decoder_output.topk(1)  # Haal het meest waarschijnlijke token uit
         ni = topi.squeeze().item()
 
         decoded_words.append(vocab.get(ni, '<UNK>'))
 
-        if ni == vocab.get('<EOS>', -1):
+        if ni == vocab.get('<EOS>', -1):  # Stop als je het <EOS> token bereikt
             break
 
-        decoder_input = torch.tensor([[ni]]).to(device)
+        decoder_input = torch.tensor([[ni]]).to(device)  # Geef het nieuwe token door aan de decoder
 
     response = ' '.join(decoded_words)
 
