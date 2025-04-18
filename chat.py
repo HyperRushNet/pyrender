@@ -89,10 +89,12 @@ def generate_response(user_input, encoder, decoder, vocab):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     input_tensor = input_tensor.to(device)
 
+    # Voer de encoding uit
     encoder_hidden = encoder(input_tensor)
 
+    # Zorg ervoor dat de decoder de juiste verborgen toestand ontvangt
     decoder_input = torch.tensor([[vocab.get('<SOS>', 0)]]).to(device)
-    decoder_hidden = encoder_hidden
+    decoder_hidden = encoder_hidden[0]  # Gebruik alleen de eerste waarde van encoder output
 
     decoded_words = []
 
