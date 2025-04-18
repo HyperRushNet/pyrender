@@ -8,6 +8,9 @@ import string
 # Flask app
 app = Flask(__name__)
 
+const port = process.env.PORT || 8080;
+
+
 # Model definitie
 class TextGenerationModel(nn.Module):
     def __init__(self, vocab_size, embedding_dim, hidden_dim, num_layers):
