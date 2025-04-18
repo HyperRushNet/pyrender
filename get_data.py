@@ -1,5 +1,4 @@
 import torch
-import requests
 import re
 
 def get_ds():
@@ -14,29 +13,21 @@ def get_ds():
     vocab = set()
 
     for line in lines:
-        try:
-            # Verwacht dat elke regel 2 delen heeft gescheiden door een tab
-            input_line, target_line = line.split('\t')
+        input_line, target_line = line.split('\t')
+        # Voeg numerieke waarden toe aan target_tensor en woorden aan vocab
+        target_tensor.append([int(re.sub(r'\D', '', word)) for word in target_line.split() if re.sub(r'\D', '', word) != ''])
+        vocab.update(input_line.split())
+        vocab.update(target_line.split())
 
-            # Voeg de input line toe aan input_tensor
-            # Verdeel de inputregel in woorden en voeg deze toe aan de vocab
-            input_tensor.append([word for word in input_line.split() if word.strip() != ''])
-            vocab.update(input_line.split())
-
-            # Verwerk de target_line naar numerieke waarden
-            target_tensor.append([int(re.sub(r'\D', '', word)) for word in target_line.split() if re.sub(r'\D', '', word) != ''])
-            vocab.update(target_line.split())
-
-        except ValueError:
-            # Fout afhandelen als een regel niet in 2 delen kan worden gesplitst
-            print(f"Skipping invalid line: {line}")
-            continue
-
-    # Maak een vocabulaire van woorden naar indices
     vocab = {word: idx for idx, word in enumerate(sorted(vocab))}
     
-    # Zet input_tensor om naar een tensor van indices
-    input_tensor = [torch.tensor([vocab[word] for word in sentence], dtype=torch.long) for sentence in input_tensor]
+    # Nu moeten we input_tensor als een lijst van indices maken
+    for line in lines:
+        input_line, _ = line.split('\t')
+        input_tensor.append([vocab[word] for word in input_line.split()])
+
+    # Zet input_tensor en target_tensor om naar tensors van het juiste type
+    input_tensor = torch.tensor(input_tensor, dtype=torch.long)
     target_tensor = torch.tensor(target_tensor, dtype=torch.long)
 
     return input_tensor, target_tensor, vocab
