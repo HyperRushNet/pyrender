@@ -20,6 +20,16 @@ learning_rate = 0.001
 # Verkrijg de training data
 input_tensor, target_tensor, vocab = get_ds()
 
+# Debug print statements om de data te controleren
+print(f"Input Tensor Length: {len(input_tensor)}")
+print(f"Target Tensor Length: {len(target_tensor)}")
+print(f"Vocabulary Size: {len(vocab)}")
+
+# Controleer of de data leeg is
+if len(input_tensor) == 0 or len(target_tensor) == 0:
+    print("Error: No training data available.")
+    exit(1)
+
 # Initialiseer het model
 encoder = Encoder(vocab_size=len(vocab), hidden_size=hidden_dim)
 decoder = Decoder(vocab_size=len(vocab), hidden_size=hidden_dim)
@@ -27,9 +37,8 @@ model = Seq2Seq(encoder, decoder)
 optimizer = Adam(model.parameters(), lr=learning_rate)
 loss_fn = nn.CrossEntropyLoss()
 
-# Train het model (deze code kan je tijdelijk uitschakelen voor productie)
-# Als je het model al getraind hebt, sla deze sectie over.
-train_model = True  # Zet dit op False in de productieomgeving
+# Train het model
+train_model = True  # Zet dit op True om te trainen
 
 if train_model:
     for epoch in range(num_epochs):
