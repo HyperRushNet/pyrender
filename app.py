@@ -1,21 +1,27 @@
 from flask import Flask, request, jsonify
-from model import model, tokenizer, predict_next_word
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 app = Flask(__name__)
 
-@app.route('/')
-def home():
-    return "Welkom bij de woordvoorspeller API!"
+# Laad het model en de tokenizer
+model_name = "path/to/your/model"  # Vul hier je modelpad in
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForCausalLM.from_pretrained(model_name)
 
-@app.route('/predict', methods=['GET'])
+@app.route('/predict', methods=['POST'])
 def predict():
-    input_text = request.args.get('q')
-    
-    if input_text:
-        predicted_word = predict_next_word(model, tokenizer, input_text)
-        return jsonify({"input_text": input_text, "predicted_word": predicted_word})
-    else:
-        return jsonify({"error": "Geen tekst opgegeven. Gebruik ?q=parameter."}), 400
+    data = request.get_json()
+    input_text = data['text']
 
-if __name__ == "__main__":
+    # Tokenizeer de invoer
+    inputs = tokenizer(input_text, return_tensors='pt')
+    with torch.no_grad():
+        outputs = model.generate(inputs['input_ids'], max_length=100)
+
+    # Decodeer de output en stuur de respons terug
+    predicted_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    return jsonify({"prediction": predicted_text})
+
+if __name__ == '__main__':
     app.run(debug=True)
