@@ -1,14 +1,10 @@
 services:
   - type: web
-    name: text-prediction-api
+    name: woordvoorspeller
     env: python
-    plan: free
-    build:
-      commands:
-        - pip install -r requirements.txt
-    deploy:
-      commands:
-        - python model.py  # Dit traint en slaat het model op
-    routes:
-      - type: http
-        port: 10000
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn app:app"
+    instances: 1
+    envVars:
+      - key: PORT
+        value: "8080"
