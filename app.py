@@ -104,4 +104,4 @@ def predict():
     return jsonify({'generated_text': generated_text})
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=8080)  # of een andere poort zoals 5000
