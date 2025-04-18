@@ -9,7 +9,7 @@ import string
 app = Flask(__name__)
 
 # Hardcode de poort naar 8080, omdat we geen omgevingvariabele gebruiken
-PORT = 8080
+port = int(os.environ.get('PORT', 8080))  # Gebruik de omgevingsvariabele PORT of 8080 als fallback
 
 # Model definitie
 class TextGenerationModel(nn.Module):
@@ -109,4 +109,4 @@ def predict():
 if __name__ == '__main__':
     # Start de Flask app op poort 8080
     print(f"Starting the app on port {PORT}")
-    app.run(host='0.0.0.0', port=PORT)
+    app.run(host='0.0.0.0', port=port)
