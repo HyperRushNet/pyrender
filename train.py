@@ -22,16 +22,23 @@ model = Seq2Seq(encoder, decoder)
 optimizer = Adam(model.parameters(), lr=learning_rate)
 loss_fn = nn.CrossEntropyLoss()
 
+# Zorg ervoor dat het model naar de juiste device wordt gestuurd (GPU of CPU)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model.to(device)
+
 # Train het model
 for epoch in range(num_epochs):
     model.train()
+    total_loss = 0  # Variable to accumulate loss for each epoch
     for i in range(0, len(input_tensor), batch_size):
         # Haal een batch van de data
-        inputs = input_tensor[i:i + batch_size]
-        targets = target_tensor[i:i + batch_size]
+        inputs = input_tensor[i:i + batch_size].to(device)
+        targets = target_tensor[i:i + batch_size].to(device)
 
         # Voer een forward pass uit
         output = model(inputs, targets)
+        
+        # Bereken de loss
         loss = loss_fn(output.view(-1, len(vocab)), targets.view(-1))
 
         # Voer backpropagation uit
@@ -39,7 +46,11 @@ for epoch in range(num_epochs):
         loss.backward()
         optimizer.step()
 
-    print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {loss.item()}")
+        total_loss += loss.item()  # Accumulate loss for the epoch
+
+    # Print de loss na elke epoch
+    avg_loss = total_loss / (len(input_tensor) // batch_size)  # Gemiddelde loss per epoch
+    print(f"Epoch {epoch + 1}/{num_epochs}, Average Loss: {avg_loss:.4f}")
 
 # Sla het model op
 torch.save(model.encoder.state_dict(), 'model/encoder.pt')
