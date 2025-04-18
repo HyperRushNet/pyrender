@@ -1,9 +1,14 @@
 services:
   - type: web
-    name: word-prediction-app
+    name: text-prediction-api
     env: python
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "gunicorn app:app"
-    envVars:
-      - key: FLASK_ENV
-        value: "production"
+    plan: free
+    build:
+      commands:
+        - pip install -r requirements.txt
+    deploy:
+      commands:
+        - python model.py  # Dit traint en slaat het model op
+    routes:
+      - type: http
+        port: 10000
