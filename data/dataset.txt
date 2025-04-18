@@ -1,5 +1,3 @@
-ik hou van programmeren
-programmeren is leuk
-python is een geweldige taal
-ik leer python
-ik hou van datawetenschap
+Dit is de eerste zin in de dataset.
+De tweede zin bevat meer tekst.
+Hier is een derde voorbeeld.
