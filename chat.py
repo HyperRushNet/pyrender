@@ -72,6 +72,7 @@ if train_model:
     with open('model/vocab.pkl', 'wb') as f:
         pickle.dump(vocab, f)
 
+
 def tensor_from_sentence(vocab, sentence):
     # Zet de zin om naar een lijst van indices, update het vocabulaire als een woord niet bestaat
     indices = []
@@ -89,13 +90,16 @@ def generate_response(user_input, encoder, decoder, vocab):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     input_tensor = input_tensor.to(device)
 
+    # Verkrijg de verborgen toestand van de encoder
     encoder_hidden = encoder(input_tensor)
 
-    # Als de encoder meerdere outputs geeft, gebruik alleen de verborgen toestand (hidden state)
-    encoder_hidden = encoder_hidden[0]  # Neem de eerste waarde als de verborgen toestand
+    # Debug: Controleer de vorm van de encoderoutput
+    print(f"Encoder hidden state shape: {encoder_hidden[0].shape}")  # Controleer de vorm van de eerste laag van de encoder
 
     decoder_input = torch.tensor([[vocab.get('<SOS>', 0)]]).to(device)  # Gebruik <SOS> token voor de decoder input
-    decoder_hidden = encoder_hidden  # Het verborgen toestand komt van de encoder
+
+    # De eerste verborgen toestand van de encoder wordt gebruikt voor de decoder
+    decoder_hidden = encoder_hidden[0]  # Neem de eerste waarde van de encoderoutput als verborgen toestand
 
     decoded_words = []
 
