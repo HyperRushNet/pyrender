@@ -1,73 +1,58 @@
-import torch
+import os
 import pickle
+import torch
 from torch import nn
 from torch.optim import Adam
 from model.Seq2Seq import Seq2Seq, Encoder, Decoder
 from get_data import get_ds
-import os
 
-# Controleer of de map bestaat, zo niet maak hem aan
+# Controleer of de modelmap bestaat, maak hem anders aan
 if not os.path.exists('model'):
     os.makedirs('model')
 
-# Hyperparameters
-embedding_dim = 256
-hidden_dim = 512
-num_epochs = 10
-batch_size = 64
-learning_rate = 0.001
-
-# Verkrijg de training data
+# Verkrijg de gegevens
 input_tensor, target_tensor, vocab = get_ds()
 
-# Debug print statements om de data te controleren
-print(f"Input Tensor Length: {len(input_tensor)}")
-print(f"Target Tensor Length: {len(target_tensor)}")
-print(f"Vocabulary Size: {len(vocab)}")
-
-# Controleer of de data leeg is
+# Controleer of de data geldig is
 if len(input_tensor) == 0 or len(target_tensor) == 0:
-    print("Error: No training data available.")
+    print("Error: Geen trainingsdata beschikbaar.")
     exit(1)
 
-# Initialiseer het model
+# Initialiseer model, encoder, en decoder
+embedding_dim = 256
+hidden_dim = 512
 encoder = Encoder(vocab_size=len(vocab), hidden_size=hidden_dim)
 decoder = Decoder(vocab_size=len(vocab), hidden_size=hidden_dim)
 model = Seq2Seq(encoder, decoder)
-optimizer = Adam(model.parameters(), lr=learning_rate)
+optimizer = Adam(model.parameters(), lr=0.001)
 loss_fn = nn.CrossEntropyLoss()
 
 # Train het model
-train_model = True  # Zet dit op True om te trainen
+for epoch in range(10):
+    model.train()
+    total_loss = 0
+    for i in range(0, len(input_tensor), 64):  # Batches van 64
+        inputs = input_tensor[i:i + 64]
+        targets = target_tensor[i:i + 64]
+        
+        output = model(inputs, targets)
+        loss = loss_fn(output.view(-1, len(vocab)), targets.view(-1))
+        
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
 
-if train_model:
-    for epoch in range(num_epochs):
-        model.train()
-        total_loss = 0  # Variable to accumulate loss for each epoch
-        for i in range(0, len(input_tensor), batch_size):
-            # Haal een batch van de data
-            inputs = input_tensor[i:i + batch_size]
-            targets = target_tensor[i:i + batch_size]
+        total_loss += loss.item()
 
-            # Voer een forward pass uit
-            output = model(inputs, targets)
-            loss = loss_fn(output.view(-1, len(vocab)), targets.view(-1))
+    avg_loss = total_loss / (len(input_tensor) // 64)
+    print(f"Epoch {epoch + 1}/10, Gemiddelde verlies: {avg_loss:.4f}")
 
-            # Voer backpropagation uit
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+# Sla het model en vocab op
+torch.save(model.encoder.state_dict(), 'model/encoder.pt')
+torch.save(model.decoder.state_dict(), 'model/decoder.pt')
 
-            total_loss += loss.item()  # Accumulate loss for the epoch
+# Sla vocab op in een pickle bestand
+with open('model/vocab.pkl', 'wb') as f:
+    pickle.dump(vocab, f)
 
-        # Print de loss na elke epoch
-        avg_loss = total_loss / (len(input_tensor) // batch_size)  # Gemiddelde loss per epoch
-        print(f"Epoch {epoch + 1}/{num_epochs}, Average Loss: {avg_loss:.4f}")
-
-    # Sla het model op (encoder, decoder)
-    torch.save(model.encoder.state_dict(), 'model/encoder.pt')
-    torch.save(model.decoder.state_dict(), 'model/decoder.pt')
-
-    # Sla de vocab op
-    with open('model/vocab.pkl', 'wb') as f:
-        pickle.dump(vocab, f)
+print("Model getraind en opgeslagen.")
