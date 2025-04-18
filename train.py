@@ -36,8 +36,11 @@ for epoch in range(num_epochs):
         targets = target_tensor[i:i + batch_size].to(device)
 
         # Voer een forward pass uit
-        output = model(inputs, targets)
-        
+        output, encoder_hidden = model(inputs, targets)
+
+        # Debug print voor de vorm van de encoder output
+        print(f"Encoder hidden state shape: {encoder_hidden[0].shape}")  # Controleer de vorm
+
         # Bereken de loss
         loss = loss_fn(output.view(-1, len(vocab)), targets.view(-1))
 
