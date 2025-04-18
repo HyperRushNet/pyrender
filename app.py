@@ -1,56 +1,64 @@
-from flask import Flask, request, jsonify
 import torch
-from transformers import AutoTokenizer
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import torch.nn as nn
+import numpy as np
 
-# Functie om vocab_size automatisch te bepalen
-def get_vocab_size_from_input(user_input):
-    # Laad een tokenizer (bijvoorbeeld BERT tokenizer)
-    tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+app = Flask(__name__)
 
-    # Tokenize de gebruikersinvoer (dit splitst de tekst in tokens)
-    tokens = tokenizer.tokenize(user_input)
+# Definieer de vocabulaire en de vocab_size
+vocab = ['<PAD>', '<UNK>', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
+char_to_index = {char: idx for idx, char in enumerate(vocab)}
+index_to_char = {idx: char for idx, char in enumerate(vocab)}
 
-    # Verkrijg de unieke tokens
-    unique_tokens = set(tokens)
+# Vocabulaire grootte
+vocab_size = len(vocab)
 
-    # De vocab_size is het aantal unieke tokens
-    vocab_size = len(unique_tokens)
-    return vocab_size
-
-# Definieer het Text Generation Model
-class TextGenerationModel(torch.nn.Module):
-    def __init__(self, vocab_size, embedding_dim=128, hidden_dim=256, num_layers=2):
+# Model definitie
+class TextGenerationModel(nn.Module):
+    def __init__(self, vocab_size, embedding_dim, hidden_dim, num_layers):
         super(TextGenerationModel, self).__init__()
-        self.embedding = torch.nn.Embedding(vocab_size, embedding_dim)
-        self.lstm = torch.nn.LSTM(embedding_dim, hidden_dim, num_layers)
-        self.fc = torch.nn.Linear(hidden_dim, vocab_size)
-    
+        self.embedding = nn.Embedding(vocab_size, embedding_dim)
+        self.lstm = nn.LSTM(embedding_dim, hidden_dim, num_layers, batch_first=True)
+        self.fc = nn.Linear(hidden_dim, vocab_size)
+
     def forward(self, x):
-        embedded = self.embedding(x)
-        lstm_out, _ = self.lstm(embedded)
+        x = self.embedding(x)
+        lstm_out, _ = self.lstm(x)
         output = self.fc(lstm_out)
         return output
 
-# Initialiseer Flask applicatie
-app = Flask(__name__)
+# Laad je model
+model = TextGenerationModel(vocab_size, embedding_dim=128, hidden_dim=256, num_layers=2)
+model.load_state_dict(torch.load('./model/text_gen_model.pth'))
+model.eval()
 
+# Functie om tekst te genereren
+def generate_text(start_text, length=100):
+    model.eval()
+    generated = start_text
+    input_seq = torch.tensor([char_to_index.get(char, char_to_index['<UNK>']) for char in start_text], dtype=torch.long).unsqueeze(0)
+
+    with torch.no_grad():
+        for _ in range(length):
+            output = model(input_seq)
+            _, top_index = torch.max(output[:, -1], dim=1)
+            next_char = index_to_char.get(top_index.item(), '<UNK>')
+            generated += next_char
+            input_seq = torch.cat([input_seq, top_index.unsqueeze(0)], dim=1)[:, 1:]
+
+    return generated
+
+# Stel CORS in
+CORS(app)
+
+# Flask route voor voorspelling
 @app.route('/predict', methods=['POST'])
 def predict():
-    # Verkrijg de gebruikersinvoer uit het verzoek
-    user_input = request.json.get("text", "")
-    
-    # Verkrijg de vocab_size van de gebruikersinvoer
-    vocab_size = get_vocab_size_from_input(user_input)
-    
-    # Maak het model met de dynamisch berekende vocab_size
-    model = TextGenerationModel(vocab_size, embedding_dim=128, hidden_dim=256, num_layers=2)
-    
-    # Hier kun je het model gebruiken om voorspellingen te doen (bijvoorbeeld genereren van tekst)
-    # Hier is een placeholder voor een modelvoorspelling
-    # output = model(input_tensor)  # Input tensor wordt gemaakt uit de gebruikersinvoer
-    
-    # Voor nu sturen we gewoon de vocab_size terug en een succesbericht
-    return jsonify({"vocab_size": vocab_size, "message": "Model is ready for prediction"})
+    data = request.get_json()
+    input_text = data['text']
+    generated_text = generate_text(input_text, length=100)
+    return jsonify({"prediction": generated_text})
 
 if __name__ == '__main__':
     app.run(debug=True)
