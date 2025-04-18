@@ -1,8 +1,12 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS  # Voeg deze regel toe voor CORS
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 app = Flask(__name__)
+
+# Voeg CORS toe aan de app
+CORS(app)  # Dit staat CORS toe voor alle domeinen. Je kunt het later beperken als je wilt.
 
 # Laad het model en de tokenizer
 model_name = "path/to/your/model"  # Vul hier je modelpad in
