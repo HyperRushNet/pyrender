@@ -29,11 +29,12 @@ loss_fn = nn.CrossEntropyLoss()
 
 # Train het model (deze code kan je tijdelijk uitschakelen voor productie)
 # Als je het model al getraind hebt, sla deze sectie over.
-train_model = True  # Zet dit op False als je het model niet wilt trainen
+train_model = True  # Zet dit op False in de productieomgeving
 
 if train_model:
     for epoch in range(num_epochs):
         model.train()
+        total_loss = 0  # Variable to accumulate loss for each epoch
         for i in range(0, len(input_tensor), batch_size):
             # Haal een batch van de data
             inputs = input_tensor[i:i + batch_size]
@@ -48,7 +49,11 @@ if train_model:
             loss.backward()
             optimizer.step()
 
-        print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {loss.item()}")
+            total_loss += loss.item()  # Accumulate loss for the epoch
+
+        # Print de loss na elke epoch
+        avg_loss = total_loss / (len(input_tensor) // batch_size)  # Gemiddelde loss per epoch
+        print(f"Epoch {epoch + 1}/{num_epochs}, Average Loss: {avg_loss:.4f}")
 
     # Sla het model op (encoder, decoder)
     torch.save(model.encoder.state_dict(), 'model/encoder.pt')
