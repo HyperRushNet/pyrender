@@ -1,11 +1,9 @@
 services:
   - type: web
-    name: nlg-chatbot
+    name: word-prediction-app
     env: python
-    region: frankfurt
-    plan: free
     buildCommand: "pip install -r requirements.txt"
     startCommand: "gunicorn app:app"
     envVars:
       - key: FLASK_ENV
-        value: production
+        value: "production"
