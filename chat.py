@@ -1,6 +1,5 @@
 import os
 import pickle
-import torch
 
 def load_model_and_vocab():
     # Pad naar de model map
@@ -8,11 +7,11 @@ def load_model_and_vocab():
     
     # Bestanden in de model map
     vocab_file = os.path.join(model_dir, 'vocab.pkl')
-    model_weights_path = os.path.join(model_dir, 'model_weights.pth')
+    model_file = os.path.join(model_dir, 'model.pkl')
 
     # Debugging: Controleer of de bestanden bestaan
     print(f"Bestand vocab: {os.path.exists(vocab_file)}")
-    print(f"Bestand model: {os.path.exists(model_weights_path)}")
+    print(f"Bestand model: {os.path.exists(model_file)}")
 
     # Laad het vocab bestand
     try:
@@ -21,11 +20,12 @@ def load_model_and_vocab():
     except FileNotFoundError:
         raise FileNotFoundError(f"Het bestand '{vocab_file}' is niet gevonden.")
 
-    # Controleer of het model-bestand bestaat
-    if not os.path.exists(model_weights_path):
-        raise FileNotFoundError(f"Het bestand '{model_weights_path}' is niet gevonden.")
+    # Laad het model bestand
+    try:
+        with open(model_file, 'rb') as f:
+            model = pickle.load(f)
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Het bestand '{model_file}' is niet gevonden.")
 
-    # Laad het model
-    model = torch.load(model_weights_path)
-    model.eval()  # Zet het model in evaluatiemodus
+    # Retourneer model en vocab
     return model, vocab
