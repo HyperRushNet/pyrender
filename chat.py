@@ -91,7 +91,7 @@ def generate_response(user_input, encoder, decoder, vocab):
     input_tensor = input_tensor.to(device)
 
     # Verkrijg de verborgen toestand van de encoder
-    encoder_hidden = encoder(input_tensor)
+    encoder_output, encoder_hidden = encoder(input_tensor)
 
     # Debug: Controleer de vorm van de encoderoutput
     print(f"Encoder hidden state shape: {encoder_hidden[0].shape}")  # Controleer de vorm van de eerste laag van de encoder
