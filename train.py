@@ -6,6 +6,10 @@ from torch.optim import Adam
 from model.Seq2Seq import Seq2Seq, Encoder, Decoder
 from get_data import get_ds
 
+# Zorg ervoor dat de tijdelijke map wordt aangemaakt
+tmp_dir = './tmp'
+os.makedirs(tmp_dir, exist_ok=True)  # Maakt de map aan als deze nog niet bestaat
+
 # Controleer of de modelmap bestaat, maak hem anders aan
 if not os.path.exists('model'):
     os.makedirs('model')
@@ -47,12 +51,17 @@ for epoch in range(10):
     avg_loss = total_loss / (len(input_tensor) // 64)
     print(f"Epoch {epoch + 1}/10, Gemiddelde verlies: {avg_loss:.4f}")
 
-# Sla het model en vocab op
-torch.save(model.encoder.state_dict(), 'model/encoder.pt')
-torch.save(model.decoder.state_dict(), 'model/decoder.pt')
+# Sla het model en vocab op in de tijdelijke map
+encoder_path = os.path.join(tmp_dir, 'encoder.pt')
+decoder_path = os.path.join(tmp_dir, 'decoder.pt')
+vocab_path = os.path.join(tmp_dir, 'vocab.pkl')
 
-# Sla vocab op in een pickle bestand
-with open('model/vocab.pkl', 'wb') as f:
+# Sla het model op in de tijdelijke map
+torch.save(model.encoder.state_dict(), encoder_path)
+torch.save(model.decoder.state_dict(), decoder_path)
+
+# Sla vocab op in de tijdelijke map
+with open(vocab_path, 'wb') as f:
     pickle.dump(vocab, f)
 
-print("Model getraind en opgeslagen.")
+print("Model getraind en opgeslagen in de ./tmp map.")
