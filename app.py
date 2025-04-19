@@ -107,7 +107,4 @@ def predict():
     
     return jsonify({'generated_text': generated_text})
 
-if __name__ == '__main__':
-    # Start de Flask app op poort 8080
-    print(f"Starting the app on port {PORT}")
-    app.run(host='0.0.0.0', port=port)
+
