@@ -9,9 +9,6 @@ import string
 # Flask app
 app = Flask(__name__)
 
-# Gebruik de omgevingvariabele PORT of standaard naar 8080
-port = int(os.environ.get('PORT', 8080))
-
 # Model definitie
 class TextGenerationModel(nn.Module):
     def __init__(self, vocab_size, embedding_dim, hidden_dim, num_layers):
@@ -42,7 +39,7 @@ def generate_text(model, start_text, vocab, max_len=100):
     input_text = preprocess_text(start_text, vocab)
     input_tensor = torch.tensor(input_text).unsqueeze(1)  # Maak input geschikt voor LSTM (batch_size = 1)
 
-    output_tokens = input_text
+    output_tokens = input_text.copy()
 
     for _ in range(max_len):
         with torch.no_grad():
@@ -89,8 +86,8 @@ def train_model(model, vocab):
             loss.backward()
             optimizer.step()
 
-            if epoch % 10 == 0 and epoch > 0:
-                print(f'Epoch [{epoch}/100], Loss: {loss.item():.4f}')
+        if epoch % 10 == 0 and epoch > 0:
+            print(f'Epoch [{epoch}/100], Loss: {loss.item():.4f}')
     print("Model training complete.")
 
 # Train model
@@ -107,6 +104,7 @@ def predict():
 
     return jsonify({'generated_text': generated_text})
 
-# Start de Flask app
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=port)
+# Start de app met aangepaste poortinstelling via omgevingsvariabele
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
