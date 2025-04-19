@@ -6,7 +6,6 @@ from flask import Flask, request, jsonify
 import random
 import string
 
-# Flask app
 app = Flask(__name__)
 
 # Model definitie
@@ -23,86 +22,64 @@ class TextGenerationModel(nn.Module):
         out = self.fc(lstm_out)
         return out, hidden
 
-# Functie om tekst te preprocessen en om te zetten naar tokens
+# Preprocessing en decoding
 def preprocess_text(text, vocab):
-    return [vocab.get(c, 0) for c in text]  # Zet elke karakter om naar een index
+    return [vocab.get(c, 0) for c in text]
 
-# Functie om de gegenereerde tokens om te zetten naar tekst
 def decode_tokens(tokens, vocab):
     reverse_vocab = {v: k for k, v in vocab.items()}
     return ''.join([reverse_vocab.get(token, '?') for token in tokens])
 
-# Functie voor tekstgeneratie
 def generate_text(model, start_text, vocab, max_len=100):
     model.eval()
     hidden = None
     input_text = preprocess_text(start_text, vocab)
-    input_tensor = torch.tensor(input_text).unsqueeze(1)  # Maak input geschikt voor LSTM (batch_size = 1)
+    input_tensor = torch.tensor(input_text).unsqueeze(1)
 
-    output_tokens = input_text.copy()
+    output_tokens = input_text
 
     for _ in range(max_len):
         with torch.no_grad():
             output, hidden = model(input_tensor, hidden)
-            output = output[-1, :, :]  # Neem de output van het laatste tijdstip
-
-            # Verkrijg de waarschijnlijkheid van de volgende token
+            output = output[-1, :, :]
             next_token = torch.argmax(output).item()
             output_tokens.append(next_token)
-
             input_tensor = torch.tensor([[next_token]])
 
     return decode_tokens(output_tokens, vocab)
 
-# Definieer vocabulaire
+# Vocab en model
 vocab = {c: i + 1 for i, c in enumerate(string.ascii_lowercase + string.digits + ' ')}
-vocab_size = len(vocab) + 1  # +1 voor het onbekende teken (0-index)
+vocab_size = len(vocab) + 1
 
-# Maak model aan
 embedding_dim = 128
 hidden_dim = 256
 num_layers = 2
 model = TextGenerationModel(vocab_size, embedding_dim, hidden_dim, num_layers)
 
-# Train een eenvoudig model (demo)
 def train_model(model, vocab):
     model.train()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     criterion = nn.CrossEntropyLoss()
-
-    # We trainen op willekeurige tekst voor dit voorbeeld
     random_texts = ["hello world", "deep learning", "flask api", "text generation", "openai gpt"]
-    for epoch in range(100):  # Train voor een aantal epochs
+    for epoch in range(5):  # kortere training
         for text in random_texts:
             input_text = preprocess_text(text, vocab)
-            input_tensor = torch.tensor(input_text).unsqueeze(1)  # Shape: (seq_len, batch_size)
-
+            input_tensor = torch.tensor(input_text).unsqueeze(1)
             optimizer.zero_grad()
-            output, _ = model(input_tensor, None)  # Geen initiale hidden state
-            output = output.view(-1, vocab_size)  # (seq_len * batch_size, vocab_size)
-            target = input_tensor.view(-1)  # Target is de "volgende" token in de tekst
-
+            output, _ = model(input_tensor, None)
+            output = output.view(-1, vocab_size)
+            target = input_tensor.view(-1)
             loss = criterion(output, target)
             loss.backward()
             optimizer.step()
 
-        if epoch % 10 == 0 and epoch > 0:
-            print(f'Epoch [{epoch}/100], Loss: {loss.item():.4f}')
-    print("Model training complete.")
-
-# Train model
 train_model(model, vocab)
 
-# Flask route voor de API
+# Endpoint
 @app.route('/predict', methods=['POST'])
 def predict():
     data = request.get_json()
     input_text = data.get('text', '')
-
-    # Genereer tekst met het model
     generated_text = generate_text(model, input_text, vocab, max_len=100)
-
     return jsonify({'generated_text': generated_text})
-
-if __name__ == "__main__":
-    print("Run this with Gunicorn: gunicorn app:app")
