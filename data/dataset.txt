@@ -1,3 +1,10 @@
-Dit is de eerste zin in de dataset.
-De tweede zin bevat meer tekst.
-Hier is een derde voorbeeld.
+hello world
+deep learning is amazing
+flask is a web framework
+text generation is fun
+machine learning models are powerful
+openai's gpt is a large language model
+artificial intelligence is the future
+data science and ai are closely related
+building models with pytorch is easy
+tensorflow is another popular framework
