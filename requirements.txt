@@ -1,6 +1,6 @@
 flask
 flask-cors
-transformers
 torch
-gunicorn
+transformers
 datasets
+gunicorn
