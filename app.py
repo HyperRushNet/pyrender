@@ -3,14 +3,13 @@ import os
 import torch.nn as nn
 import torch.optim as optim
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import random
 import string
-from flask_cors import CORS
 
-CORS(app)
-
-
+# Maak Flask app
 app = Flask(__name__)
+CORS(app)  # Zorgt dat frontend van andere domeinen mag POSTen
 
 # Model definitie
 class TextGenerationModel(nn.Module):
@@ -26,7 +25,7 @@ class TextGenerationModel(nn.Module):
         out = self.fc(lstm_out)
         return out, hidden
 
-# Preprocessing en decoding
+# Preprocessing
 def preprocess_text(text, vocab):
     return [vocab.get(c, 0) for c in text]
 
@@ -52,22 +51,24 @@ def generate_text(model, start_text, vocab, max_len=100):
 
     return decode_tokens(output_tokens, vocab)
 
-# Vocab en model
+# Vocab setup
 vocab = {c: i + 1 for i, c in enumerate(string.ascii_lowercase + string.digits + ' ')}
 vocab_size = len(vocab) + 1
 
+# Model setup
 embedding_dim = 128
 hidden_dim = 256
 num_layers = 2
 model = TextGenerationModel(vocab_size, embedding_dim, hidden_dim, num_layers)
 
+# Training
 def train_model(model, vocab):
     model.train()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     criterion = nn.CrossEntropyLoss()
-    random_texts = ["hello world", "deep learning", "flask api", "text generation", "openai gpt"]
-    for epoch in range(5):  # kortere training
-        for text in random_texts:
+    texts = ["hello world", "deep learning", "flask api", "text generation", "openai gpt"]
+    for epoch in range(5):
+        for text in texts:
             input_text = preprocess_text(text, vocab)
             input_tensor = torch.tensor(input_text).unsqueeze(1)
             optimizer.zero_grad()
@@ -80,4 +81,15 @@ def train_model(model, vocab):
 
 train_model(model, vocab)
 
+# API Endpoint
+@app.route('/predict', methods=['POST'])
+def predict():
+    data = request.get_json()
+    input_text = data.get('text', '')
+    generated_text = generate_text(model, input_text, vocab, max_len=100)
+    return jsonify({'generated_text': generated_text})
 
+# Run voor local of Render
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
