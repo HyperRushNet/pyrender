@@ -5,6 +5,10 @@ import torch.optim as optim
 from flask import Flask, request, jsonify
 import random
 import string
+from flask_cors import CORS
+
+CORS(app)
+
 
 app = Flask(__name__)
 
@@ -76,10 +80,4 @@ def train_model(model, vocab):
 
 train_model(model, vocab)
 
-# Endpoint
-@app.route('/predict', methods=['POST'])
-def predict():
-    data = request.get_json()
-    input_text = data.get('text', '')
-    generated_text = generate_text(model, input_text, vocab, max_len=100)
-    return jsonify({'generated_text': generated_text})
+
