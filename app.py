@@ -1,15 +1,11 @@
 import torch
+import torch.nn as nn
 import os
-import string
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import torch.nn as nn
+import string
 
-# Maak Flask app
-app = Flask(__name__)
-CORS(app)  # Zorgt dat frontend van andere domeinen mag POSTen
-
-# Model definitie
+# Definieer het LSTM-model
 class TextGenerationModel(nn.Module):
     def __init__(self, vocab_size, embedding_dim, hidden_dim, num_layers):
         super(TextGenerationModel, self).__init__()
@@ -24,45 +20,61 @@ class TextGenerationModel(nn.Module):
         return out, hidden
 
 # Laad het model
-vocab = {c: i + 1 for i, c in enumerate(string.ascii_lowercase + string.digits + ' ')}
+model_dir = './model'
+model_load_path = os.path.join(model_dir, 'lstm_model.pth')
+
+# Controleer of het model al bestaat
+if not os.path.exists(model_load_path):
+    raise FileNotFoundError(f"Modelbestand {model_load_path} niet gevonden!")
+
+# Laad model en parameters
+vocab = {c: i + 1 for i, c in enumerate('abcdefghijklmnopqrstuvwxyz0123456789 ')}
 vocab_size = len(vocab) + 1
+
 embedding_dim = 128
 hidden_dim = 256
 num_layers = 2
-
 model = TextGenerationModel(vocab_size, embedding_dim, hidden_dim, num_layers)
-
-# Pad naar modelbestand relatief
-model_load_path = os.path.join(os.getcwd(), "model", "lstm_model.pth")
 model.load_state_dict(torch.load(model_load_path))
 model.eval()
 
-# Functie om tekst te genereren
+# Flask setup
+app = Flask(__name__)
+CORS(app)
+
+# Preprocessing
+def preprocess_text(text, vocab):
+    return [vocab.get(c, 0) for c in text]
+
+def decode_tokens(tokens, vocab):
+    reverse_vocab = {v: k for k, v in vocab.items()}
+    return ''.join([reverse_vocab.get(token, '?') for token in tokens])
+
+# Genereer tekst
 def generate_text(model, start_text, vocab, max_len=100):
+    model.eval()
     hidden = None
-    input_text = [vocab.get(c, 0) for c in start_text]
-    input_tensor = torch.tensor(input_text).unsqueeze(0)  # batch size 1
+    input_text = preprocess_text(start_text, vocab)
+    input_tensor = torch.tensor(input_text).unsqueeze(1)
 
     output_tokens = input_text
 
     for _ in range(max_len):
         with torch.no_grad():
             output, hidden = model(input_tensor, hidden)
-            output = output[:, -1, :]  # Alleen de laatste output
-            next_token = torch.argmax(output, dim=1).item()
+            output = output[-1, :, :]
+            next_token = torch.argmax(output).item()
             output_tokens.append(next_token)
             input_tensor = torch.tensor([[next_token]])
 
-    reverse_vocab = {v: k for k, v in vocab.items()}
-    generated_text = ''.join([reverse_vocab.get(token, '?') for token in output_tokens])
-    return generated_text
+    return decode_tokens(output_tokens, vocab)
 
-# API endpoint voor voorspelling
+# API Endpoint
 @app.route('/predict', methods=['POST'])
 def predict():
     data = request.get_json()
     input_text = data.get('text', '')
-    generated_text = generate_text(model, input_text, vocab)
+    generated_text = generate_text(model, input_text, vocab, max_len=100)
     return jsonify({'generated_text': generated_text})
 
 # Run voor local of Render
