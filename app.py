@@ -1,92 +1,43 @@
-import torch
 import os
-import torch.nn as nn
-import torch.optim as optim
+import torch
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import random
-import string
+from transformers import AutoTokenizer, AutoModelForCausalLM
 
 # Maak Flask app
 app = Flask(__name__)
 CORS(app)  # Zorgt dat frontend van andere domeinen mag POSTen
 
-# Model definitie
-class TextGenerationModel(nn.Module):
-    def __init__(self, vocab_size, embedding_dim, hidden_dim, num_layers):
-        super(TextGenerationModel, self).__init__()
-        self.embedding = nn.Embedding(vocab_size, embedding_dim)
-        self.lstm = nn.LSTM(embedding_dim, hidden_dim, num_layers)
-        self.fc = nn.Linear(hidden_dim, vocab_size)
-
-    def forward(self, x, hidden):
-        x = self.embedding(x)
-        lstm_out, hidden = self.lstm(x, hidden)
-        out = self.fc(lstm_out)
-        return out, hidden
+# Model en tokenizer laden
+model_name = "distilgpt2"  # Gebruik het kleinere model
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForCausalLM.from_pretrained(model_name)
 
 # Preprocessing
-def preprocess_text(text, vocab):
-    return [vocab.get(c, 0) for c in text]
+def preprocess_text(text):
+    # Tokenizeer de tekst
+    return tokenizer(text, return_tensors="pt", truncation=True, padding=True, max_length=512)
 
-def decode_tokens(tokens, vocab):
-    reverse_vocab = {v: k for k, v in vocab.items()}
-    return ''.join([reverse_vocab.get(token, '?') for token in tokens])
-
-def generate_text(model, start_text, vocab, max_len=100):
+def generate_text(model, start_text, max_len=100):
     model.eval()
-    hidden = None
-    input_text = preprocess_text(start_text, vocab)
-    input_tensor = torch.tensor(input_text).unsqueeze(1)
+    inputs = preprocess_text(start_text)
+    input_ids = inputs["input_ids"]
+    attention_mask = inputs["attention_mask"]
 
-    output_tokens = input_text
+    # Gebruik torch.no_grad() om geheugen te besparen tijdens inferentie
+    with torch.no_grad():
+        output = model.generate(input_ids=input_ids, attention_mask=attention_mask, max_length=max_len, num_return_sequences=1)
 
-    for _ in range(max_len):
-        with torch.no_grad():
-            output, hidden = model(input_tensor, hidden)
-            output = output[-1, :, :]
-            next_token = torch.argmax(output).item()
-            output_tokens.append(next_token)
-            input_tensor = torch.tensor([[next_token]])
-
-    return decode_tokens(output_tokens, vocab)
-
-# Vocab setup
-vocab = {c: i + 1 for i, c in enumerate(string.ascii_lowercase + string.digits + ' ')}
-vocab_size = len(vocab) + 1
-
-# Model setup
-embedding_dim = 128
-hidden_dim = 256
-num_layers = 2
-model = TextGenerationModel(vocab_size, embedding_dim, hidden_dim, num_layers)
-
-# Training
-def train_model(model, vocab):
-    model.train()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
-    criterion = nn.CrossEntropyLoss()
-    texts = ["hello world", "deep learning", "flask api", "text generation", "openai gpt"]
-    for epoch in range(5):
-        for text in texts:
-            input_text = preprocess_text(text, vocab)
-            input_tensor = torch.tensor(input_text).unsqueeze(1)
-            optimizer.zero_grad()
-            output, _ = model(input_tensor, None)
-            output = output.view(-1, vocab_size)
-            target = input_tensor.view(-1)
-            loss = criterion(output, target)
-            loss.backward()
-            optimizer.step()
-
-train_model(model, vocab)
+    # Decodeer de output naar tekst
+    generated_text = tokenizer.decode(output[0], skip_special_tokens=True)
+    return generated_text
 
 # API Endpoint
 @app.route('/predict', methods=['POST'])
 def predict():
     data = request.get_json()
     input_text = data.get('text', '')
-    generated_text = generate_text(model, input_text, vocab, max_len=100)
+    generated_text = generate_text(model, input_text, max_len=100)
     return jsonify({'generated_text': generated_text})
 
 # Run voor local of Render
