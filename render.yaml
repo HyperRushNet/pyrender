@@ -3,6 +3,6 @@ services:
     name: jouw-app-naam
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --bind 0.0.0.0:8070
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
     plan: free
     autoDeploy: true
