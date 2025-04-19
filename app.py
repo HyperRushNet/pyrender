@@ -1,15 +1,13 @@
 import torch
 import os
-import torch.nn as nn
-import torch.optim as optim
+import string
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import random
-import string
+import torch.nn as nn
 
-# Flask app init
+# Maak Flask app
 app = Flask(__name__)
-CORS(app)
+CORS(app)  # Zorgt dat frontend van andere domeinen mag POSTen
 
 # Model definitie
 class TextGenerationModel(nn.Module):
@@ -25,77 +23,49 @@ class TextGenerationModel(nn.Module):
         out = self.fc(lstm_out)
         return out, hidden
 
-# Preprocessing
-def preprocess_text(text, vocab):
-    return [vocab.get(c, 0) for c in text.lower()]
+# Laad het model
+vocab = {c: i + 1 for i, c in enumerate(string.ascii_lowercase + string.digits + ' ')}
+vocab_size = len(vocab) + 1
+embedding_dim = 128
+hidden_dim = 256
+num_layers = 2
 
-def decode_tokens(tokens, vocab):
-    reverse_vocab = {v: k for k, v in vocab.items()}
-    return ''.join([reverse_vocab.get(token, '?') for token in tokens])
+model = TextGenerationModel(vocab_size, embedding_dim, hidden_dim, num_layers)
 
+# Pad naar modelbestand relatief
+model_load_path = os.path.join(os.getcwd(), "model", "lstm_model.pth")
+model.load_state_dict(torch.load(model_load_path))
+model.eval()
+
+# Functie om tekst te genereren
 def generate_text(model, start_text, vocab, max_len=100):
-    model.eval()
     hidden = None
-    input_text = preprocess_text(start_text, vocab)
-    input_tensor = torch.tensor(input_text).unsqueeze(1)
+    input_text = [vocab.get(c, 0) for c in start_text]
+    input_tensor = torch.tensor(input_text).unsqueeze(0)  # batch size 1
 
     output_tokens = input_text
 
     for _ in range(max_len):
         with torch.no_grad():
             output, hidden = model(input_tensor, hidden)
-            output = output[-1, :, :]
-            next_token = torch.argmax(output).item()
+            output = output[:, -1, :]  # Alleen de laatste output
+            next_token = torch.argmax(output, dim=1).item()
             output_tokens.append(next_token)
             input_tensor = torch.tensor([[next_token]])
 
-    return decode_tokens(output_tokens, vocab)
+    reverse_vocab = {v: k for k, v in vocab.items()}
+    generated_text = ''.join([reverse_vocab.get(token, '?') for token in output_tokens])
+    return generated_text
 
-# Vocab setup
-vocab = {c: i + 1 for i, c in enumerate(string.ascii_lowercase + string.digits + ' ')}
-vocab_size = len(vocab) + 1
-
-# Model setup
-embedding_dim = 128
-hidden_dim = 256
-num_layers = 2
-model = TextGenerationModel(vocab_size, embedding_dim, hidden_dim, num_layers)
-
-# Training (dummy data, klein & snel zodat Render het aan kan)
-def train_model(model, vocab):
-    model.train()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
-    criterion = nn.CrossEntropyLoss()
-    texts = ["hello world", "deep learning", "flask api", "text generation", "openai gpt"]
-    for epoch in range(1):  # slechts 1 epoch om resources te sparen
-        for text in texts:
-            input_text = preprocess_text(text, vocab)
-            input_tensor = torch.tensor(input_text).unsqueeze(1)
-            optimizer.zero_grad()
-            output, _ = model(input_tensor, None)
-            output = output.view(-1, vocab_size)
-            target = input_tensor.view(-1)
-            loss = criterion(output, target)
-            loss.backward()
-            optimizer.step()
-
-train_model(model, vocab)
-
-# API Endpoint
+# API endpoint voor voorspelling
 @app.route('/predict', methods=['POST'])
 def predict():
-    try:
-        data = request.get_json(force=True)  # force=True voor veiligheid
-        if not data or 'text' not in data:
-            return jsonify({'error': 'No text provided'}), 400
+    data = request.get_json()
+    input_text = data.get('text', '')
+    generated_text = generate_text(model, input_text, vocab)
+    return jsonify({'generated_text': generated_text})
 
-        input_text = data['text']
-        generated_text = generate_text(model, input_text, vocab, max_len=100)
-        return jsonify({'generated_text': generated_text})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-# Start
+# Run voor local of Render
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
