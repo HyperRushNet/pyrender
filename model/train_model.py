@@ -1,25 +1,25 @@
 from datasets import load_dataset
 from transformers import AutoTokenizer, AutoModelForCausalLM, Trainer, TrainingArguments
 
-# Laad dataset
+# Laad dataset - Verklein de dataset als je geheugenproblemen hebt
 dataset = load_dataset("text", data_files={"train": "data/dataset.txt"})
 
-# Laad een pre-trained model en tokenizer (bijvoorbeeld GPT-2)
-model_name = "gpt2"  # Je kunt hier een ander model kiezen
+# Kies een kleiner model om geheugen te besparen, bijvoorbeeld distilgpt2
+model_name = "distilgpt2"  # Gebruik een kleiner model zoals distilgpt2
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 model = AutoModelForCausalLM.from_pretrained(model_name)
 
 # Voorbereiden van de dataset (tokenizeer de tekst)
 def encode(examples):
-    return tokenizer(examples['text'], padding="max_length", truncation=True)
+    return tokenizer(examples['text'], padding="max_length", truncation=True, max_length=512)
 
 dataset = dataset.map(encode, batched=True)
 
-# Configuratie voor training
+# Configuratie voor training (kleinere batchgrootte om geheugen te besparen)
 training_args = TrainingArguments(
     output_dir="./model",          # Waar de modelbestanden worden opgeslagen
     num_train_epochs=3,            # Aantal trainingsepochs
-    per_device_train_batch_size=4, # Batchgrootte
+    per_device_train_batch_size=2, # Lagere batchgrootte om geheugen te besparen
     save_steps=10_000,             # Opslaan elke 10.000 stappen
     save_total_limit=2,            # Aantal opgeslagen modellen
 )
