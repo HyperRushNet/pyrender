@@ -1,16 +1,16 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
-import string
 import os
+from datasets import load_dataset
+from torch.utils.data import Dataset
 
-# LSTM Model voor tekstgeneratie
+# Definieer het LSTM-model
 class TextGenerationModel(nn.Module):
     def __init__(self, vocab_size, embedding_dim, hidden_dim, num_layers):
         super(TextGenerationModel, self).__init__()
         self.embedding = nn.Embedding(vocab_size, embedding_dim)
-        self.lstm = nn.LSTM(embedding_dim, hidden_dim, num_layers, batch_first=True)
+        self.lstm = nn.LSTM(embedding_dim, hidden_dim, num_layers)
         self.fc = nn.Linear(hidden_dim, vocab_size)
 
     def forward(self, x, hidden):
@@ -19,67 +19,80 @@ class TextGenerationModel(nn.Module):
         out = self.fc(lstm_out)
         return out, hidden
 
-# Dataset voorbereiden
-class TextDataset(Dataset):
-    def __init__(self, text, vocab, seq_length=100):
-        self.text = text
-        self.vocab = vocab
-        self.seq_length = seq_length
+# Preprocessing
+def preprocess_text(text, vocab):
+    return [vocab.get(c, 0) for c in text]
 
-    def __len__(self):
-        return len(self.text) - self.seq_length
+def decode_tokens(tokens, vocab):
+    reverse_vocab = {v: k for k, v in vocab.items()}
+    return ''.join([reverse_vocab.get(token, '?') for token in tokens])
 
-    def __getitem__(self, idx):
-        x = [self.vocab.get(c, 0) for c in self.text[idx: idx + self.seq_length]]
-        y = [self.vocab.get(c, 0) for c in self.text[idx + 1: idx + self.seq_length + 1]]
-        return torch.tensor(x), torch.tensor(y)
+# Dataset inladen en voorbereiden
+dataset = load_dataset("text", data_files={"train": "data/dataset.txt"})
 
-# Tekst voor training
-data_path = os.path.join(os.getcwd(), "data", "dataset.txt")  # Zet het bestand relatief
-with open(data_path, "r") as file:
-    text = file.read()
+# Vocab instellen
+vocab = {c: i + 1 for i, c in enumerate('abcdefghijklmnopqrstuvwxyz0123456789 ')}
+vocab_size = len(vocab) + 1  # voor padding
 
-# Vocab aanmaken (alle unieke karakters in de tekst)
-vocab = {c: i + 1 for i, c in enumerate(string.ascii_lowercase + string.digits + ' ')}
-vocab_size = len(vocab) + 1
-
-# Modelparameters
+# Modelinstellingen
 embedding_dim = 128
 hidden_dim = 256
 num_layers = 2
-batch_size = 64
-epochs = 10
 
-# Dataset en dataloader
-dataset = TextDataset(text, vocab)
-dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
-
-# Model en training setup
+# Maak een instance van het model
 model = TextGenerationModel(vocab_size, embedding_dim, hidden_dim, num_layers)
-optimizer = optim.Adam(model.parameters(), lr=0.001)
-criterion = nn.CrossEntropyLoss()
 
-# Trainen van het model
-def train_model():
+# Dataset voorbereiden
+class TextDataset(Dataset):
+    def __init__(self, texts, vocab):
+        self.texts = texts
+        self.vocab = vocab
+    
+    def __len__(self):
+        return len(self.texts)
+    
+    def __getitem__(self, idx):
+        text = self.texts[idx]
+        return torch.tensor(preprocess_text(text, self.vocab))
+
+train_texts = dataset['train']['text']
+
+train_dataset = TextDataset(train_texts, vocab)
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=4, shuffle=True)
+
+# Training
+def train_model(model, train_loader, vocab_size, num_epochs=5):
     model.train()
-    for epoch in range(epochs):
-        total_loss = 0
-        hidden = None
-        for x_batch, y_batch in dataloader:
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    criterion = nn.CrossEntropyLoss()
+
+    for epoch in range(num_epochs):
+        for batch in train_loader:
             optimizer.zero_grad()
 
-            output, hidden = model(x_batch, hidden)
-            loss = criterion(output.view(-1, vocab_size), y_batch.view(-1))
+            # Veronderstel dat we de tekst als input gebruiken
+            input_text = batch
+            output, _ = model(input_text, None)
+
+            # Target is de tekst verschoven met 1 (volgende token)
+            target = input_text[:, 1:].contiguous().view(-1)
+            output = output[:, :-1, :].contiguous().view(-1, vocab_size)
+
+            loss = criterion(output, target)
             loss.backward()
             optimizer.step()
 
-            total_loss += loss.item()
-
-        print(f"Epoch {epoch+1}/{epochs}, Loss: {total_loss/len(dataloader)}")
+        print(f'Epoch {epoch+1}/{num_epochs}, Loss: {loss.item()}')
 
 # Train het model
-train_model()
+train_model(model, train_loader, vocab_size)
+
+# Zorg ervoor dat de map voor het model bestaat
+model_dir = './model'
+os.makedirs(model_dir, exist_ok=True)
 
 # Sla het model op
-model_save_path = os.path.join(os.getcwd(), "model", "lstm_model.pth")  # Relatief opslaan
+model_save_path = os.path.join(model_dir, 'lstm_model.pth')
 torch.save(model.state_dict(), model_save_path)
+
+print("Model opgeslagen!")
