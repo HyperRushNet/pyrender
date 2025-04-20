@@ -1,83 +1,84 @@
-import torch
-import torch.nn as nn
-import os
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-import string
+import numpy as np
 
-# Definieer het LSTM-model
-class TextGenerationModel(nn.Module):
-    def __init__(self, vocab_size, embedding_dim, hidden_dim, num_layers):
-        super(TextGenerationModel, self).__init__()
-        self.embedding = nn.Embedding(vocab_size, embedding_dim)
-        self.lstm = nn.LSTM(embedding_dim, hidden_dim, num_layers)
-        self.fc = nn.Linear(hidden_dim, vocab_size)
+# Zelf-attentie mechanisme
+def self_attention(query, key, value):
+    # Bereken de score (dot-product)
+    scores = np.matmul(query, key.T)  # Afmeting: (seq_len, seq_len)
+    
+    # Voeg de softmax toe om de waarschijnlijkheden te krijgen
+    attention_weights = softmax(scores)
+    
+    # Vermenigvuldig de gewichten met de value
+    output = np.matmul(attention_weights, value)
+    
+    return output, attention_weights
 
-    def forward(self, x, hidden):
-        x = self.embedding(x)
-        lstm_out, hidden = self.lstm(x, hidden)
-        out = self.fc(lstm_out)
-        return out, hidden
+# Softmax functie voor normalisatie
+def softmax(x):
+    e_x = np.exp(x - np.max(x, axis=-1, keepdims=True))
+    return e_x / np.sum(e_x, axis=-1, keepdims=True)
 
-# Laad het model
-model_dir = './model'
-model_load_path = os.path.join(model_dir, 'lstm_model.pth')
+# Positional encoding toevoegen (gebaseerd op de originele Transformer paper)
+def positional_encoding(seq_len, d_model):
+    pos = np.arange(seq_len)[:, np.newaxis]
+    i = np.arange(d_model)[np.newaxis, :]
+    angle_rates = 1 / np.power(10000, (2 * (i // 2)) / np.float32(d_model))
+    angle_rads = pos * angle_rates
+    pos_encoding = np.zeros((seq_len, d_model))
+    pos_encoding[:, 0::2] = np.sin(angle_rads[:, 0::2])  # Sin voor even
+    pos_encoding[:, 1::2] = np.cos(angle_rads[:, 1::2])  # Cos voor oneven
+    return pos_encoding
 
-# Controleer of het model al bestaat
-if not os.path.exists(model_load_path):
-    raise FileNotFoundError(f"Modelbestand {model_load_path} niet gevonden!")
+# Lineaire laag (fully connected)
+def linear(x, weights, bias):
+    return np.dot(x, weights) + bias
 
-# Laad model en parameters
-vocab = {c: i + 1 for i, c in enumerate('abcdefghijklmnopqrstuvwxyz0123456789 ')}
-vocab_size = len(vocab) + 1
+# Feedforward netwerk (2 lagen)
+def feedforward(x, d_model, ff_size):
+    # Eerste laag
+    w1 = np.random.randn(d_model, ff_size)
+    b1 = np.random.randn(ff_size)
+    x = np.maximum(0, linear(x, w1, b1))  # ReLU activatie
+    
+    # Tweede laag
+    w2 = np.random.randn(ff_size, d_model)
+    b2 = np.random.randn(d_model)
+    x = linear(x, w2, b2)
+    
+    return x
 
-embedding_dim = 128
-hidden_dim = 256
-num_layers = 2
-model = TextGenerationModel(vocab_size, embedding_dim, hidden_dim, num_layers)
-model.load_state_dict(torch.load(model_load_path))
-model.eval()
+# Encoder blok (self-attention + feedforward)
+def transformer_encoder(x, d_model, n_heads, ff_size):
+    seq_len = x.shape[0]
+    
+    # Positional encoding toevoegen aan de input
+    pos_enc = positional_encoding(seq_len, d_model)
+    x = x + pos_enc  # Input + Positional encoding
+    
+    # Zelf-attentie
+    query = np.random.randn(seq_len, d_model)
+    key = np.random.randn(seq_len, d_model)
+    value = x
+    attention_output, _ = self_attention(query, key, value)
+    
+    # Residual connectie
+    x = x + attention_output
+    
+    # Feedforward netwerk
+    x = feedforward(x, d_model, ff_size)
+    
+    return x
 
-# Flask setup
-app = Flask(__name__)
-CORS(app)
+# Model initialisatie
+seq_len = 10  # Sequentie lengte
+d_model = 64  # Dimensie van embedding
+n_heads = 8   # Aantal heads in multi-head attention
+ff_size = 256 # Grootte van het feedforward netwerk
 
-# Preprocessing
-def preprocess_text(text, vocab):
-    return [vocab.get(c, 0) for c in text]
+# Input data (bijvoorbeeld tokenized woorden)
+x = np.random.randn(seq_len, d_model)
 
-def decode_tokens(tokens, vocab):
-    reverse_vocab = {v: k for k, v in vocab.items()}
-    return ''.join([reverse_vocab.get(token, '?') for token in tokens])
+# Encoder doorgeven
+output = transformer_encoder(x, d_model, n_heads, ff_size)
 
-# Genereer tekst
-def generate_text(model, start_text, vocab, max_len=100):
-    model.eval()
-    hidden = None
-    input_text = preprocess_text(start_text, vocab)
-    input_tensor = torch.tensor(input_text).unsqueeze(1)
-
-    output_tokens = input_text
-
-    for _ in range(max_len):
-        with torch.no_grad():
-            output, hidden = model(input_tensor, hidden)
-            output = output[-1, :, :]
-            next_token = torch.argmax(output).item()
-            output_tokens.append(next_token)
-            input_tensor = torch.tensor([[next_token]])
-
-    return decode_tokens(output_tokens, vocab)
-
-# API Endpoint
-@app.route('/predict', methods=['POST'])
-def predict():
-    data = request.get_json()
-    input_text = data.get('text', '')
-    generated_text = generate_text(model, input_text, vocab, max_len=100)
-    return jsonify({'generated_text': generated_text})
-
-# Run voor local of Render
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+print("Transformer output shape:", output.shape)
